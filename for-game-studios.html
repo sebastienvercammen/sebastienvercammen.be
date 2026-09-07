@@ -38,6 +38,28 @@
      "isn't" as a warning would contradict it. Contrast alone carries the juxtaposition. */
   .tog{color:var(--accent); font-weight:700}
 
+  /* 07/09: the shadow-lab CTA, the same card data-engineering.html carries. Keyed to
+     this page's accent rather than the data blue: the capture is games work, and a
+     blue card here would read as belonging to a different page. */
+  .lab-card{border-color:var(--accent); transition:border-color .2s, transform .2s, background .2s;
+    background:linear-gradient(180deg,rgba(79,214,188,.07),var(--ink-2) 42%)}
+  a.lab-card:hover{border-color:var(--accent); transform:translateY(-3px);
+    background:linear-gradient(180deg,rgba(79,214,188,.14),var(--ink-2) 46%)}
+  .lab-card p{margin-top:12px; max-width:70ch; font-size:15.5px; color:var(--dim)}
+  .lab-card .live{display:flex; align-items:center; gap:8px; font-family:var(--mono);
+    font-size:11.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--accent);
+    white-space:nowrap}
+  .lab-card .live i{width:7px; height:7px; border-radius:50%; background:var(--accent)}
+  .lab-card .fauxbtn{display:inline-flex; align-items:center; gap:10px; margin-top:22px;
+    font-family:var(--mono); font-size:14px; font-weight:600; padding:13px 20px;
+    border-radius:7px; background:var(--accent); color:var(--ink)}
+  .lab-card .fauxbtn .arrow{transition:transform .2s}
+  a.lab-card:hover .fauxbtn .arrow{transform:translateX(5px)}
+  @media (prefers-reduced-motion:reduce){
+    a.lab-card:hover{transform:none} .lab-card .fauxbtn .arrow{transition:none}
+  }
+
+
   /* Click-to-zoom for the two evidence screenshots. Plain opacity over a solid backdrop,
      deliberately no blur and no filter, so it costs nothing to composite on a machine
      without GPU acceleration, same reason the background grid avoids them. */
@@ -157,6 +179,30 @@
           <li><b>The person who wrote the failing system isn't available.</b></li>
         </ul>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LIVE DATA PLAYGROUND ============
+     07/09: the shadow-lab CTA, also on data-engineering.html. Placed directly above the
+     proof blocks because it is the one piece of evidence on this page a reader operates
+     instead of reads. -->
+<section id="shadow-lab" class="divider-top">
+  <div class="wrap">
+    <div class="section-head"><h2>Live Data Playground: GW2 Shadow Lab</h2></div>
+    <p class="section-sub">A single frame of Guild&nbsp;Wars&nbsp;2's shadow pass, taken off the shipped binary and published as a database you can query. Same black-box method as the cases below; this one runs in your browser.</p>
+    <div class="cards">
+      <a class="case lab-card" href="shadowlab/index.html">
+        <div class="top">
+          <div>
+            <div class="platform">Guild Wars 2 &middot; one shadow frame</div>
+            <h3>Lion's Arch shadows, as a database</h3>
+          </div>
+          <span class="live"><i aria-hidden="true"></i>Live &middot; DuckDB-WASM</span>
+        </div>
+        <p>Three tables in a Parquet store, and DuckDB compiled to WebAssembly. Every figure on the page is a SQL query and every query is editable: type over it and the table under it answers. A 3D view of the same frame reads the same rows.</p>
+        <span class="fauxbtn">Open the shadow lab <span class="arrow">&rarr;</span></span>
+      </a>
     </div>
   </div>
 </section>
