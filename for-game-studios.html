@@ -345,9 +345,17 @@
           <!-- link disabled 27/07: <a class="more" href="writing/same-island-pixel-for-pixel.html">Read the investigation →</a> -->
         </div>
         <div class="col-b">
+          <!-- disabled 07/09: both renders are out of date. The number below stands in
+               until they are regenerated.
           <div class="renders">
             <figure><img class="zoomable" src="assets/img/rust-map-official.webp" alt="Official Rust map render, seed 1" loading="lazy"><div class="rcap">The game's own renderer</div></figure>
             <figure><img class="zoomable" src="assets/img/rust-map-port.webp" alt="Clean-room reimplementation render, seed 1, visually identical" loading="lazy"><div class="rcap after">My reimplementation</div></figure>
+          </div>
+          -->
+          <div class="stat">
+            <div class="k">Bit-exact port</div>
+            <div class="v fix">0</div>
+            <div class="sub">Largest difference from the game's own output. Height, biome, topology, splat.</div>
           </div>
           <p class="lead" style="margin-top:20px"><strong>And bit-exactness is optional.</strong> The fastest version drops it in favour of maximum performance. It doesn't reproduce the game's output bit for bit from the same seed, but it generates the same gameplay-level features, so there is no noticeable difference for players. CUDA takes out the last few seconds on top of that. When the output does have to match the game exactly, that path exists and is proven: the bit-exact port is byte-for-byte identical to the game's own output, every noise primitive and every terrain layer, and the accelerated version that <em>keeps</em> that guarantee runs <strong>~116 s, 2.4× faster than the game</strong>, with <strong>1.90× throughput</strong> on top.</p>
           <!-- The "maxULP = 0" display block was deleted 30/07. Two reasons: it was the single
