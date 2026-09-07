@@ -93,6 +93,11 @@
     <p>I do not work for ArenaNet and have no relationship with them. This is independent black-box research on a retail client. The data provided is heuristically approximated and derived from the shadow rendering in Lion's Arch. While the data is representative, none of the data is GW2's actual data.</p>
   </div>
 
+  <div class="callout withheld">
+    <div class="lbl">Method withheld</div>
+    <p>This page shows what was measured, never how the measurement is taken. It does not describe how the capture attaches to the process, how the shadow tick is located, which structures are read, or any of the hooking, signature-matching or addressing involved. The identifier map that reverses the public ids back to the capture exists, is necessary for my own work, and is not published. The measurement is the publication; the mechanism is not.</p>
+  </div>
+
   <h2>Where the queries run</h2>
 </div>
 
@@ -336,31 +341,6 @@
   </div>
 </div>
 
-<div class="prose">
-  <h2 id="limits">What this capture does not contain</h2>
-
-  <div class="tablewrap">
-  <table>
-    <thead><tr><th>Limit</th><th>Consequence for anything you compute</th></tr></thead>
-    <tbody>
-      <tr><td><b>Footprints are bounding boxes</b></td><td>Every area figure is an upper bound on coverage, never a texel count. The rasterized-texel field is not in this capture and was not estimated. No area figure anywhere on this page is presented as cost.</td></tr>
-      <tr><td><b><span data-fig="pct_no_visit">34.2%</span> of fact rows have no observed visit</b></td><td><span data-fig="rows_no_visit">6,285</span> of <span data-fig="fact_rows">18,384</span> rows have <code>kind_id</code> and <code>material_uid</code> <em>blank</em>, not zero. A query grouping by category is describing the <span data-fig="pct_seen">65.8%</span> that were seen at a visit site, and should say so.</td></tr>
-      <tr><td><b><span data-fig="undecodable">531</span> records had no decodable mesh</b></td><td>They are absent from <code>meshes</code> and counted rather than silently dropped, so every triangle and vertex total is a floor, not a total.</td></tr>
-      <tr><td><b><span data-fig="bind_pose">931</span> placements are in a bind pose</b></td><td>They are positioned by GW2’s own transform, but the mesh drawn for them is the one in the vertex buffer, which is the rest pose rather than the pose this frame holds. <code>wireframe.exact</code> is <code>false</code> for every segment of such a caster, and <code>placements.extent_overflow</code> says by how much the two disagree.</td></tr>
-      <tr><td><b><code>wireframe_instanced</code> has no key to join on</b></td><td><span data-fig="inst_segments">1,150,783</span> segments over <span data-fig="inst_objects">5,710</span> objects of <span data-fig="inst_slices">352</span> mesh slices, taken off the draw call in the same tick as the facts and stamped with the same frame identity. It has no <code>caster_uid</code>, so it cannot be joined to <code>facts</code>, <code>visits</code>, <code>placements</code> or <code>wireframe</code>, and every per-caster figure on this page counts the record-based corpus only. What it does carry is <code>cascade_mask</code>: the atlas is filled by three sequential passes, and <span data-fig="inst_multi">1,637</span> of these objects are submitted to more than one of them (<span data-fig="inst_three">436</span> to all three).</td></tr>
-      <tr><td><b>The category ids have no names</b></td><td><code>kind_label</code> ships empty on purpose. There is a numeric category on each record; I have no proof of what any value means, so it ships as a dense id with no label rather than a guess with one.</td></tr>
-      <tr><td><b>The camera matrix is missing</b></td><td>The capture's camera slot held stale data at commit. It is recorded as missing rather than filled in. Nothing here depends on it: the three cascade matrices, which every footprint is computed from, are present and validated.</td></tr>
-    </tbody>
-  </table>
-  </div>
-
-  <div class="callout withheld">
-    <div class="lbl">Method withheld</div>
-    <p>This page shows what was measured, never how the measurement is taken. It does not describe how the capture attaches to the process, how the shadow tick is located, which structures are read, or any of the hooking, signature-matching or addressing involved. The identifier map that reverses the public ids back to the capture exists, is necessary for my own work, and is not published. The measurement is the publication; the mechanism is not.</p>
-  </div>
-
-  <h2>The transferable part</h2>
-</div>
 
 <div class="wrap narrow">
   <div class="article-foot">
