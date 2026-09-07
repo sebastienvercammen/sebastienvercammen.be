@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>What a frame costs: building a 14-year-old engine its first per-subsystem frame profiler · Sébastien Vercammen</title>
+<meta name="description" content="Guild Wars 2 is CPU-bound in crowds and has no way to see where a frame goes. I built the engine a live per-subsystem frame profiler, found ~76% of its shadow CPU work is redundant recomputation, and proved a small honest +7%, not an inflated headline.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;450;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/site.css">
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap bar">
+    <div class="id"><a href="../index.html">Sébastien Vercammen</a> <span>/ root-cause engineering</span></div>
+    <nav class="top">
+      <a href="../index.html#work">Work</a>
+      <a href="../index.html#approach">Approach</a>
+      <a href="../index.html#engage">Engage</a>
+      <a href="../index.html#contact">Contact</a>
+    </nav>
+    <div class="status"><span class="led" aria-hidden="true"></span>Open to select engagements</div>
+  </div>
+</header>
+
+<article>
+<div class="article-head">
+  <div class="wrap narrow">
+    <p class="kicker"><span>Reverse-engineering</span> · <span>Guild Wars 2</span> · <span>independent research</span></p>
+    <h1>What a frame costs</h1>
+    <p class="dek">A ~14-year-old MMO, badly CPU-bound in crowds, with no way to see where a frame goes. I built its engine a live per-subsystem frame profiler, then used it to find that most of the shadow CPU cost is redundant recomputation repeated every frame. Diagnostic and self-attested: an observation and an opportunity, not a shipped win.</p>
+    <div class="article-meta">
+      <span><b>Game</b> Guild Wars 2 · in-house engine</span>
+      <span><b>Engine</b> DirectX 11 · CPU-bound in crowds</span>
+      <span><b>Access</b> shipped binary, no source</span>
+      <span><b>Status</b> private, unsolicited R&amp;D · self-attested</span>
+    </div>
+  </div>
+</div>
+
+<div class="wrap narrow">
+  <div class="result-banner" data-reveal>
+    <div class="stat"><div class="k">Per-subsystem frame profiler</div><div class="v fix">Built</div><div class="sub">A stalling crowd frame, itemized into named engine zones in real time</div></div>
+    <div class="stat"><div class="k">Shadow cost per frame</div><div class="v fix">~4 ms</div><div class="sub">Black-box A/B and the engine's own zone timing agree</div></div>
+  </div>
+</div>
+
+<div class="prose">
+  <p>Guild Wars 2 is around twenty years old, on an in-house DirectX 11 engine. In a heavy crowd (a world boss, a busy city) the frame rate collapses on the CPU, not the GPU: on an RTX 4080 Super at 1440p the graphics card sits mostly idle while frame time climbs. The engine gives you no way to see where the time goes.</p>
+
+  <div class="hero-num big"><span data-reveal data-count="76" data-from="0" data-suffix="%">76%</span><span class="u">of shadow CPU work recomputed identically every frame</span></div>
+  <div class="stackbar" style="margin-top:16px" aria-hidden="true">
+    <span class="seg-sym" style="width:40.1%">shadows 40%</span>
+    <span class="seg-a" style="width:23.3%">view 23%</span>
+    <span class="seg-n" style="width:36.6%">other 37%</span>
+  </div>
+
+  <h2>The frame, itemized</h2>
+  <p>The first deliverable was visibility. The engine had no per-subsystem profiler, so I built one: a live in-game overlay that breaks each frame into the named engine zones that produced it, updating as the scene changes. One heavy-crowd frame it captured:</p>
+
+  <pre class="diagram wide"><code>One heavy-crowd frame: 46.96 ms (20.5 fps), itemized
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+  Map shadows        14.90 ms  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░  40.1%
+  View-advance zone   8.67 ms  ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░░░░░░░  23.3%
+  ...remaining named zones............................   36.6%
+                                                         ─────────
+  Frame total        46.96 ms                            = 20.5 fps
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌</code></pre>
+
+  <p>Map shadows are the single largest zone: 14.90 ms, over 40% of the frame. That set the target.</p>
+
+  <div class="media-slot">
+    <div class="icn">◱</div>
+    <div class="t">Image slot: the frame profiler overlay on a 20-fps crowd frame</div>
+    <div class="s">The live per-subsystem overlay attributing a heavy-crowd frame to named engine zones: map shadows, the view-advance zone, and the rest. (Still to be cropped to remove chat and player names.)</div>
+  </div>
+
+  <h2>Shadow cost: an upper bound</h2>
+  <p>Before optimizing shadow work, I measured the ceiling with the game's own shadow toggle: removing shadows entirely, same scene, took the frame from 75 to 109 fps.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Shadows</th><th>Frame rate</th><th>GPU util</th></tr></thead>
+    <tbody>
+      <tr><td>On</td><td>75 fps</td><td>43%</td></tr>
+      <tr><td class="ok">Off (A/B toggle)</td><td class="ok">109 fps</td><td class="ok">38%</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>That is the cost of removing the whole subsystem, an upper bound on what any shadow optimization could recover rather than a delivered gain. The ~4.1 ms delta matches the engine's own shadow-caster-render step at ~3.98 ms; two independent measurements agreeing on the same ~4 ms is what makes the number trustworthy.</p>
+
+  <h2>Most of the work is redundant</h2>
+  <p>The shadow pass rebuilds three per-cascade command lists, roughly 1.8 to 2.75 ms each, every single frame. But in a crowd the shadow-casting scene and view often haven't meaningfully changed between frames. The engine recomputes an identical result anyway.</p>
+
+  <pre class="diagram wide"><code>Per-cascade shadow command-list rebuild, every frame
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+  cascade 0   ~1.8–2.75 ms   rebuilt   ▓▓▓▓▓▓▓▓
+  cascade 1   ~1.8–2.75 ms   rebuilt   ▓▓▓▓▓▓▓▓
+  cascade 2   ~1.8–2.75 ms   rebuilt   ▓▓▓▓▓▓▓▓
+                                       ────────────────────────────
+  Across frames where scene + view are unchanged:
+     ~76% of this shadow CPU work is recomputing an identical result
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌</code></pre>
+
+  <p>Across those unchanged frames, about <strong>76%</strong> of the shadow CPU work is redundant. Expensive work that has to happen is the cost of the feature; expensive work that repeats an identical result is waste, and waste is reachable.</p>
+
+  <h2>A proof-of-concept</h2>
+  <p>To test that the redundancy is reachable, I built a PoC that reuses the prior result when scene and view are unchanged and rebuilds only when they aren't. On a test frame it moved 10.58 ms → 10.04 ms: about 90 to 96.2 fps.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Test frame</th><th>Frame time</th><th>Frame rate</th></tr></thead>
+    <tbody>
+      <tr><td>Rebuild every frame</td><td>10.58 ms</td><td>~90 fps</td></tr>
+      <tr><td class="ok">Skip when unchanged (PoC)</td><td class="ok">10.04 ms</td><td class="ok">96.2 fps</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>A self-attested proof-of-concept on a specific frame, not a shipped feature: smaller than the upper bound, but a number I stood up and measured. It confirms the redundancy is genuinely reachable rather than theoretical.</p>
+
+  <div class="callout withheld">
+    <div class="lbl">Method withheld</div>
+    <p>This shows <em>what</em> was measured and concluded: the frame breakdown, the shadow-off upper bound, the redundancy figure, the PoC delta. It omits <em>how</em>: how the profiler attaches to the engine, how the skip-when-unchanged path is implemented, and every graphics-interop, resource, and binary-level specific that would make the tooling reproducible. The measurements are the proof; the method stays private.</p>
+  </div>
+
+  <h2>What not to build</h2>
+  <p>In parallel I ranked the non-shadow "frame reclaim" zones by how much was recoverable. The first ranking pointed at the biggest zones, and was wrong.</p>
+
+  <pre class="diagram"><code>Frame-reclaim fan-out: the ranking that got overturned
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+  Initial rank    "biggest zones = biggest wins"
+        │
+        ▼
+  On inspection    biggest zones = irreducible per-agent work
+        │          (scales with crowd size, can't be cheaply cut)
+        ▼
+  Revised rank     stop, the prize isn't here
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+  Knowing what NOT to build is a result.</code></pre>
+
+  <p>On inspection the biggest zones are mostly irreducible per-agent work that scales with crowd size and can't be cheaply cut. The profiler showed the shape of each zone's cost, not just its size, and steered the effort away from a dead end. A negative result is still a result.</p>
+
+  <h2>Summary</h2>
+  <ul>
+    <li>The engine had no per-subsystem frame profiler; now it has one, and a stalling frame is legible.</li>
+    <li>Removing shadows entirely is worth ~4 ms: an <em>upper bound</em>, corroborated two independent ways, not a gain.</li>
+    <li>About <strong>76%</strong> of the shadow CPU work is redundant recomputation of an identical result.</li>
+    <li>A PoC that skips the redundant rebuild proved a small, self-attested <strong>+7%</strong> on a real frame.</li>
+    <li>A separate analysis showed the biggest non-shadow zones are irreducible, and stopped the wrong optimization.</li>
+  </ul>
+
+  <p>Measurement before optimization: build the instrument, find where the time actually goes, separate the cost that has to be paid from the cost being wasted, and hold to numbers you can reproduce.</p>
+
+  <div class="callout note">
+    <div class="lbl">Scope &amp; framing</div>
+    <p>Private, unsolicited independent research: reverse-engineering a shipped game to understand where its frame time goes. There is no studio relationship, no engagement, and no credit; the results here are self-attested, measured on my own hardware. The profiler and the proof-of-concept are diagnostic instruments to test understanding, not a mod, a cheat, or anything shipped to players.</p>
+  </div>
+</div>
+
+<div class="wrap narrow">
+  <div class="article-foot">
+    <div class="row">
+      <a class="btn" href="../index.html#work">← All work</a>
+      <a class="btn primary" href="../index.html#contact">Need a black box measured? →</a>
+    </div>
+    <div class="next-list">
+      <a class="case" href="virtual-shadow-maps.html"><div class="platform">Rendering · shadow systems</div><h3 style="font-size:19px">Virtual shadow maps</h3></a>
+      <a class="case" href="same-island-pixel-for-pixel.html"><div class="platform">Rust · Facepunch</div><h3 style="font-size:19px">Same island, pixel for pixel</h3></a>
+    </div>
+  </div>
+</div>
+</article>
+
+<footer class="site">
+  <div class="wrap">
+    <span>Sébastien Vercammen · Belgium · remote</span>
+    <span>Root-cause engineering</span>
+  </div>
+</footer>
+
+<script src="../assets/vendor/prism.min.js"></script>
+<script src="../assets/js/site.js"></script>
+<!-- disabled 07/09: feedback widget. <script src="../assets/js/feedback.js"></script> -->
+</body>
+</html>

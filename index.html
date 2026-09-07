@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sébastien Vercammen · data engineering &amp; black-box root-cause analysis</title>
+<meta name="description" content="Two specialities, one discipline: data systems that stay reliable at scale, and root-cause analysis of shipped, closed-source software without source access. Pick the one you came for.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://sebastienvercammen.be/">
+<meta property="og:title" content="Sébastien Vercammen · data engineering &amp; black-box root-cause analysis">
+<meta property="og:description" content="Data systems that stay reliable at scale, and root-cause analysis of shipped, closed-source software without source access.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;450;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/site.css">
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<style>
+  /* ============================================================================
+     THE CHOOSER. Page-scoped, 01/08/2026.
+
+     Replaces the long homepage, which moved to work.html. Somebody who googled
+     the name lands here, wants one of two things and never both, and every
+     scroll between them and it is friction. So this page is two doors and
+     nothing else to read, with the contact anchor the writing pages link to
+     below them.
+
+     Ported from concept-6-merged.html, but only its structure. That file was a
+     standalone with its own :root and its own JS view-switcher; here the doors
+     are real links to real URLs, so there is no script, nothing hidden in the
+     markup, and each side can be linked directly from an email.
+
+     Colours come from the shared system, which already had this split encoded
+     and unused: --data (#7CA8FF) and --games (#4FD6BC, the same value as
+     --accent). No new tokens.
+     ============================================================================ */
+
+  /* The page fills the viewport and centres, instead of flowing. min-height, not
+     height, so a short window scrolls rather than clipping the doors. */
+  body{min-height:100vh; display:flex; flex-direction:column}
+
+  /* header.site is sticky and 60px tall, so an anchor jump would land under it. */
+  #contact{scroll-margin-top:76px}
+
+  /* site.css's hero-boost veil is `position:absolute; height:1100px`, sized for a
+     long page. An absolutely positioned box still counts toward scroll height, so
+     on a one-screen page it invents ~100px of scroll under every viewport shorter
+     than 1100px. Tying it to the viewport keeps the brighter grid (which is the
+     whole point of it here, where the "hero" is the entire page) and removes the
+     phantom scrollbar. */
+  body::before{height:100vh}
+  /* flex:1 filled the viewport while the doors were the whole page. Now that #contact sits
+     under them, main is content-sized and the contact heading rises into the first screen,
+     so the doors get the viewport back explicitly. 60px is header.site's .bar height. */
+  main.chooser{flex:1; min-height:calc(100vh - 60px); display:flex; align-items:center;
+    padding:clamp(30px,6vh,68px) 0}
+
+  .ch-intro{text-align:center; margin-bottom:clamp(30px,5vh,46px)}
+  .ch-intro h1{font-family:var(--display); font-weight:600; font-size:clamp(34px,5.2vw,54px);
+    letter-spacing:-.02em; line-height:1.04}
+  .ch-intro .desc{margin-top:16px; font-family:var(--mono); font-size:clamp(13px,1.7vw,15px);
+    letter-spacing:.04em; color:var(--dim)}
+  .ch-intro .desc .d{color:var(--data)} .ch-intro .desc .g{color:var(--games)}
+  .ch-intro .desc .sep{color:var(--faint); margin:0 10px}
+
+  .doors{display:grid; grid-template-columns:1fr 1fr; gap:22px; align-items:stretch}
+  .door{display:flex; flex-direction:column; background:var(--ink-2); border:1px solid var(--line-2);
+    border-radius:16px; padding:30px 28px 22px; color:inherit; text-decoration:none;
+    transition:opacity .3s, border-color .3s, transform .3s, background .3s}
+  /* Dim the sibling on hover. Opacity only, no filter, so it stays off the
+     per-frame compositing list the rest of the site avoids. */
+  .doors:hover .door:not(:hover){opacity:.42}
+  .door:hover{transform:translateY(-3px); text-decoration:none}
+
+  .door .eye{font-family:var(--mono); font-size:12px; font-weight:500; letter-spacing:.16em;
+    text-transform:uppercase}
+  .door .head{font-family:var(--display); font-weight:600; font-size:clamp(24px,3.1vw,34px);
+    color:var(--text); margin-top:14px; letter-spacing:-.015em; line-height:1.08}
+  .door .aud{font-family:var(--mono); font-size:12.5px; letter-spacing:.04em; margin-top:15px; color:var(--dim)}
+
+  .scr{background:#0B0E12; border:1px solid var(--line); border-radius:10px;
+    padding:14px 14px 10px; margin-top:24px; overflow:hidden}
+  .scr .cap{font-family:var(--mono); font-size:10.5px; letter-spacing:.13em; text-transform:uppercase;
+    color:var(--faint); display:flex; justify-content:space-between; gap:10px; margin-bottom:9px}
+  .scr svg{display:block; width:100%; height:auto}
+  .scr .qualities{font-family:var(--mono); font-size:11px; letter-spacing:.06em; color:var(--faint);
+    display:flex; flex-wrap:wrap; gap:5px 14px; margin-top:12px}
+
+  .door .go{margin-top:auto; padding-top:18px; border-top:1px solid var(--line);
+    display:flex; align-items:center; justify-content:space-between}
+  .door .go .cta{font-family:var(--mono); font-size:13px; font-weight:500}
+  .door .go .arrow{font-size:18px; transition:transform .3s}
+  .door:hover .go .arrow{transform:translateX(6px)}
+
+  .d-data .eye,.d-data .go .cta,.d-data .go .arrow{color:var(--data)}
+  .d-data:hover{border-color:var(--data); background:linear-gradient(180deg,rgba(124,168,255,.08),transparent 38%)}
+  .d-games .eye,.d-games .go .cta,.d-games .go .arrow{color:var(--games)}
+  .d-games:hover{border-color:var(--games); background:linear-gradient(180deg,var(--accent-soft),transparent 38%)}
+
+  .ch-foot{margin-top:clamp(22px,3.5vh,32px); text-align:center; font-family:var(--mono);
+    font-size:12.5px; color:var(--faint)}
+  .ch-foot a{color:var(--dim); border-bottom:1px solid var(--line-2)}
+  .ch-foot a:hover{color:var(--accent); border-color:var(--accent)}
+
+  /* Short viewports. The whole promise of this page is that there is nothing to
+     scroll, so on a laptop-height window the vertical air comes out rather than
+     the footer going under the fold. Measured: 850px of content at 1280×800
+     before this block, 760 after. */
+  @media (max-height:880px){
+    main.chooser{padding:24px 0}
+    .ch-intro{margin-bottom:26px}
+    .door{padding:24px 26px 18px}
+    .scr{margin-top:18px}
+    .door .go{padding-top:14px}
+    .ch-foot{margin-top:20px}
+  }
+  /* Second tier: a 1366×768 laptop gives the page about 720px. Trimming air alone
+     doesn't get there, so the type steps down too. 761px of content before this
+     block, 716 after. */
+  @media (max-height:780px){
+    .ch-intro h1{font-size:clamp(28px,3.4vw,40px)}
+    .ch-intro .desc{margin-top:11px}
+    .door .head{font-size:clamp(21px,2.4vw,27px)}
+    .door .aud{margin-top:12px}
+    .scr{padding:12px 12px 8px}
+  }
+
+  @media (max-width:760px){
+    .doors{grid-template-columns:1fr}
+    .doors:hover .door:not(:hover){opacity:1}
+    main.chooser{align-items:flex-start}
+  }
+  @media (prefers-reduced-motion:reduce){ .door:hover{transform:none} .door .go .arrow{transition:none} }
+</style>
+</head>
+<body>
+
+<!-- No nav on this page on purpose. Every nav item is one of the two things the
+     doors are for, and putting them in the header answers the question before
+     the visitor has been asked it. -->
+<header class="site">
+  <div class="wrap bar">
+    <div class="id"><a href="index.html">Sébastien Vercammen</a> <span>/ Ghent, BE</span></div>
+    <div class="status"><span class="led" aria-hidden="true"></span>Open to engagements</div>
+  </div>
+</header>
+
+<main class="chooser">
+  <div class="wrap">
+
+    <div class="ch-intro">
+      <h1>Sébastien Vercammen</h1>
+      <p class="desc"><span class="d">Data engineering</span><span class="sep">·</span><span class="g">Black-box root-cause analysis</span></p>
+    </div>
+
+    <div class="doors">
+
+      <!-- ===== DOOR A · DATA =====
+           07/09: repointed off work.html#engage onto data-engineering.html, the
+           page built from the CV. Whole page, no anchor: the visitor arriving
+           here has read nothing yet, so there is nothing to skip past. -->
+      <a class="door d-data" href="data-engineering.html">
+        <div class="eye">Data engineering</div>
+        <div class="head">Systems that stay reliable at scale.</div>
+        <div class="aud">For data teams &amp; platforms</div>
+
+        <div class="scr">
+          <div class="cap"><span>Pipeline</span><span>Python · tech lead</span></div>
+          <!-- 07/09: was one row, Ingest → Transform → Store. Now the same Extract forks into
+               two rows, ETL on top and ELT under it, because both are real experience and the
+               difference between them is only where Transform sits. The fork starts at Extract
+               and not at the left edge, which is the whole point: one extraction, two shapes. -->
+          <svg viewBox="0 0 340 112" xmlns="http://www.w3.org/2000/svg" fill="none" role="img"
+               aria-label="One Extract feeding two pipelines: extract, transform, load on the top row, and extract, load, transform on the row below it.">
+            <defs><marker id="arrow-d" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+              <path d="M0 0 L6 3.5 L0 7 z" fill="var(--data)"/></marker></defs>
+            <g stroke="var(--data)" stroke-width="1.2" opacity=".85">
+              <rect x="8" y="8" width="70" height="24" rx="6"/>
+              <rect x="104" y="8" width="86" height="24" rx="6"/>
+              <rect x="216" y="8" width="62" height="24" rx="6"/>
+              <path d="M78 20 H104" marker-end="url(#arrow-d)"/>
+              <path d="M190 20 H216" marker-end="url(#arrow-d)"/>
+              <rect x="104" y="48" width="62" height="24" rx="6"/>
+              <rect x="192" y="48" width="86" height="24" rx="6"/>
+              <path d="M166 60 H192" marker-end="url(#arrow-d)"/>
+              <path d="M43 32 V60 H104" marker-end="url(#arrow-d)"/>
+            </g>
+            <g fill="var(--data)" font-family="IBM Plex Mono" font-size="10" text-anchor="middle">
+              <text x="43" y="24">Extract</text>
+              <text x="147" y="24">Transform</text>
+              <text x="247" y="24">Load</text>
+              <text x="135" y="64">Load</text>
+              <text x="235" y="64">Transform</text>
+            </g>
+            <g fill="var(--faint)" font-family="IBM Plex Mono" font-size="9" letter-spacing=".08em">
+              <text x="290" y="24">ETL</text>
+              <text x="290" y="64">ELT</text>
+            </g>
+            <g stroke="var(--line-2)" stroke-width="1" stroke-dasharray="3 4">
+              <path d="M8 88 H332"/>
+            </g>
+            <text x="8" y="104" fill="var(--faint)" font-family="IBM Plex Mono" font-size="9">CORRECTNESS</text>
+            <text x="170" y="104" fill="var(--faint)" font-family="IBM Plex Mono" font-size="9" text-anchor="middle">OBSERVABILITY</text>
+            <text x="332" y="104" fill="var(--faint)" font-family="IBM Plex Mono" font-size="9" text-anchor="end">MAINTAINABILITY</text>
+          </svg>
+        </div>
+
+        <div class="go"><span class="cta">See the work</span><span class="arrow">→</span></div>
+      </a>
+
+      <!-- ===== DOOR B · GAMES =====
+           The chart is Over the Top: WW1, the shipped case. concept-6 drew the
+           Guild Wars 2 100→140 fps figure here; that number is not published
+           anywhere on this site and does not go on this page either. -->
+      <a class="door d-games" href="for-game-studios.html">
+        <div class="eye">Black-box root-cause analysis</div>
+        <div class="head">Why it breaks, without the source.</div>
+        <div class="aud">For game studios &amp; shipped software</div>
+
+        <div class="scr">
+          <div class="cap"><span>Worst-case frame rate</span><span>Shipped · Hotfix 1.0117</span></div>
+          <!-- 07/09: viewBox height raised 96 → 112 to match the pipeline panel opposite. The
+               drawing is untouched; the extra 16 units are empty space under it, so both SVGs
+               render at the same scale and both .scr boxes come out the same height. -->
+          <svg viewBox="0 0 340 112" xmlns="http://www.w3.org/2000/svg" fill="none" role="img"
+               aria-label="Worst-case frame rate flat and low before the fix, stepping up and holding high after it.">
+            <line x1="8" y1="62" x2="332" y2="62" stroke="var(--line-2)" stroke-dasharray="3 4"/>
+            <polyline points="10,63 40,60 70,64 100,61 130,63 160,61 171,62"
+                      stroke="var(--symptom)" stroke-width="1.8" opacity=".9"/>
+            <line x1="171" y1="14" x2="171" y2="80" stroke="var(--faint)" stroke-dasharray="3 4"/>
+            <polyline points="171,62 186,42 200,26 230,24 266,26 300,23 332,25"
+                      stroke="var(--games)" stroke-width="2.2"/>
+            <circle cx="332" cy="25" r="3.5" fill="var(--games)"/>
+            <text x="66" y="79" fill="var(--symptom)" font-family="IBM Plex Mono" font-size="10" text-anchor="middle">before · &lt;20 fps</text>
+            <text x="264" y="17" fill="var(--games)" font-family="IBM Plex Mono" font-size="10" text-anchor="middle">after · &gt;60 fps</text>
+          </svg>
+        </div>
+
+        <div class="go"><span class="cta">See the offer</span><span class="arrow">→</span></div>
+      </a>
+
+    </div>
+
+    <!-- disabled 07/09: work.html. <p class="ch-foot">Not sure which? <a href="work.html">The full body of work</a> covers both.</p> -->
+
+  </div>
+</main>
+
+<!-- Ten writing pages and the shadowlab article link to index.html#contact. The chooser had no
+     such anchor, so those links landed at the top of the page. Same markup and same copy as
+     work.html, which is the general entry this page replaced. -->
+<section id="contact" class="contact divider-top">
+  <div class="wrap">
+    <h2>Get in touch</h2>
+    <p>Send me a short description of what you need and what you've already tried. I'll come back with how I'd approach it. If I'm not the right fit, I'll tell you. Async and written-first works best.</p>
+    <div class="cta-row">
+      <a class="btn primary" href="mailto:hello@sebastienvercammen.be">hello@sebastienvercammen.be</a>
+    </div>
+  </div>
+</section>
+
+<footer class="site">
+  <div class="wrap">
+    <span>Sébastien Vercammen · Belgium · remote</span>
+    <span>Root-cause engineering</span>
+  </div>
+</footer>
+
+<!-- disabled 07/09: feedback widget. <script src="assets/js/feedback.js"></script> -->
+</body>
+</html>

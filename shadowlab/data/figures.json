@@ -1,0 +1,489 @@
+{
+ "_assets": {
+  "cascades.parquet": 2443,
+  "duckdb-eh.wasm": 35913747,
+  "facts.parquet": 468978,
+  "meshes.parquet": 37063,
+  "parquet.duckdb_extension.wasm": 3218307,
+  "placements.parquet": 139605,
+  "shadow_depth.parquet": 696101,
+  "visits.parquet": 14120,
+  "wireframe.parquet": 16125306,
+  "wireframe_instanced.parquet": 14370356
+ },
+ "atlas_h": {
+  "sql": "SELECT max(texels_h) FROM cascades",
+  "t": "2,048",
+  "v": 2048.0
+ },
+ "atlas_w_px": {
+  "sql": "SELECT sum(texels_w) FROM cascades",
+  "t": "6144",
+  "v": 6144.0
+ },
+ "axis_ratio": {
+  "sql": "SELECT round(quantile_cont(greatest(world_hx,world_hy,world_hz)/nullif(least(world_hx,world_hy,world_hz),0),0.5),1) FROM (SELECT DISTINCT caster_uid, world_hx, world_hy, world_hz FROM facts)",
+  "t": "2.1",
+  "v": 2.1
+ },
+ "bind_pose": {
+  "sql": "SELECT count(DISTINCT caster_uid) FROM wireframe w WHERE NOT exact AND caster_uid IN (SELECT caster_uid FROM placements WHERE verified=0 AND centre_error <= 0.35)",
+  "t": "931",
+  "v": 931.0
+ },
+ "both": {
+  "sql": "SELECT count(*) FROM visits WHERE enrolled = 1 AND first_reject IS NOT NULL",
+  "t": "2,807",
+  "v": 2807.0
+ },
+ "c0_across": {
+  "sql": "SELECT round(1.0/sqrt(m00*m00+m01*m01+m02*m02)/(SELECT count(*) FROM cascades)) FROM cascades WHERE cascade=0",
+  "t": "1,702",
+  "v": 1702.0
+ },
+ "c0_down": {
+  "sql": "SELECT round(1.0/sqrt(m10*m10+m11*m11+m12*m12)) FROM cascades WHERE cascade=0",
+  "t": "1,702",
+  "v": 1702.0
+ },
+ "c0_resident": {
+  "sql": "SELECT count(DISTINCT caster_uid) FROM facts WHERE outside=0 AND cascade=0",
+  "t": "348",
+  "v": 348.0
+ },
+ "c2_across": {
+  "sql": "SELECT round(1.0/sqrt(m00*m00+m01*m01+m02*m02)/(SELECT count(*) FROM cascades)) FROM cascades WHERE cascade=2",
+  "t": "9,511",
+  "v": 9511.0
+ },
+ "c2_down": {
+  "sql": "SELECT round(1.0/sqrt(m10*m10+m11*m11+m12*m12)) FROM cascades WHERE cascade=2",
+  "t": "9,511",
+  "v": 9511.0
+ },
+ "c2_resident": {
+  "sql": "SELECT count(DISTINCT caster_uid) FROM facts WHERE outside=0 AND cascade=2",
+  "t": "5,007",
+  "v": 5007.0
+ },
+ "cascades": {
+  "sql": "SELECT count(*) FROM cascades",
+  "t": "3",
+  "v": 3.0
+ },
+ "casters_meshed": {
+  "sql": "SELECT count(DISTINCT caster_uid) FROM wireframe",
+  "t": "4,852",
+  "v": 4852.0
+ },
+ "casters_no_node": {
+  "sql": "SELECT count(*) FROM (SELECT DISTINCT caster_uid FROM facts) WHERE caster_uid NOT IN (SELECT caster_uid FROM placements)",
+  "t": "1,101",
+  "v": 1101.0
+ },
+ "casters_seen": {
+  "sql": "SELECT count(DISTINCT caster_uid) FROM visits",
+  "t": "4,033",
+  "v": 4033.0
+ },
+ "casters_with_mesh": {
+  "sql": "SELECT count(*) FROM meshes",
+  "t": "5,597",
+  "v": 5597.0
+ },
+ "clipped": {
+  "sql": "SELECT count(*) FROM facts WHERE outside=0 AND clipped=1",
+  "t": "1,278",
+  "v": 1278.0
+ },
+ "collections": {
+  "sql": "SELECT count(DISTINCT collection_uid) FROM facts",
+  "t": "2,001",
+  "v": 2001.0
+ },
+ "core_mb": {
+  "held": true,
+  "t": "1.3",
+  "why": "the tables registered before the page is usable"
+ },
+ "data_mb": {
+  "held": true,
+  "t": "30.4",
+  "why": "total size of the shipped Parquet files"
+ },
+ "decimated_away": {
+  "sql": "SELECT (SELECT count(*) FROM placements WHERE verified=1 OR centre_error<=0.35 OR extent_overflow<=0.02) - (SELECT count(DISTINCT caster_uid) FROM wireframe)",
+  "t": "5",
+  "v": 5.0
+ },
+ "depth_range": {
+  "sql": "SELECT round(1.0/sqrt(m20*m20+m21*m21+m22*m22)) FROM cascades WHERE cascade=1",
+  "t": "20,000",
+  "v": 20000.0
+ },
+ "distinct_meshes": {
+  "sql": "SELECT count(DISTINCT mesh_uid) FROM meshes",
+  "t": "2,632",
+  "v": 2632.0
+ },
+ "drawn_exact": {
+  "sql": "SELECT count(DISTINCT caster_uid) FROM wireframe WHERE exact",
+  "t": "2,880",
+  "v": 2880.0
+ },
+ "drawn_loose": {
+  "sql": "SELECT count(DISTINCT caster_uid) FROM wireframe WHERE NOT exact",
+  "t": "1,972",
+  "v": 1972.0
+ },
+ "enrolled": {
+  "sql": "SELECT sum(enrolled) FROM visits",
+  "t": "10,692",
+  "v": 10692.0
+ },
+ "fact_rows": {
+  "sql": "SELECT count(*) FROM facts",
+  "t": "18,384",
+  "v": 18384.0
+ },
+ "feature_edges": {
+  "sql": "SELECT sum(e) FROM (SELECT count(*)/count(DISTINCT caster_uid) AS e FROM wireframe GROUP BY mesh_uid)",
+  "t": "554,958",
+  "v": 554958.0
+ },
+ "figures_drawn": {
+  "sql": "SELECT count(*) FROM (SELECT DISTINCT caster_uid, world_hx, world_hy, world_hz FROM facts) WHERE world_hz > greatest(world_hx, world_hy) AND 2*world_hz BETWEEN 40 AND 130 AND caster_uid IN (SELECT caster_uid FROM wireframe)",
+  "t": "442",
+  "v": 442.0
+ },
+ "figures_loose": {
+  "sql": "SELECT count(*) FROM (SELECT DISTINCT caster_uid, world_hx, world_hy, world_hz FROM facts) WHERE world_hz > greatest(world_hx, world_hy) AND 2*world_hz BETWEEN 40 AND 130 AND caster_uid IN (SELECT caster_uid FROM wireframe WHERE NOT exact)",
+  "t": "285",
+  "v": 285.0
+ },
+ "figures_total": {
+  "sql": "SELECT count(*) FROM (SELECT DISTINCT caster_uid, world_hx, world_hy, world_hz FROM facts) WHERE world_hz > greatest(world_hx, world_hy) AND 2*world_hz BETWEEN 40 AND 130",
+  "t": "609",
+  "v": 609.0
+ },
+ "geom_mb": {
+  "held": true,
+  "t": "29.1",
+  "why": "the two wireframe tables, fetched when the 3D view is reached"
+ },
+ "inside": {
+  "sql": "SELECT count(*) FROM facts WHERE outside=0 AND clipped=0",
+  "t": "7,131",
+  "v": 7131.0
+ },
+ "inst_multi": {
+  "sql": "SELECT count(*) FROM (SELECT DISTINCT object_uid, cascade_mask FROM wireframe_instanced) WHERE bit_count(cascade_mask) > 1",
+  "t": "1,637",
+  "v": 1637.0
+ },
+ "inst_objects": {
+  "sql": "SELECT count(DISTINCT object_uid) FROM wireframe_instanced",
+  "t": "5,710",
+  "v": 5710.0
+ },
+ "inst_segments": {
+  "sql": "SELECT count(*) FROM wireframe_instanced",
+  "t": "1,150,783",
+  "v": 1150783.0
+ },
+ "inst_slices": {
+  "sql": "SELECT count(DISTINCT slice_uid) FROM wireframe_instanced",
+  "t": "352",
+  "v": 352.0
+ },
+ "inst_three": {
+  "sql": "SELECT count(*) FROM (SELECT DISTINCT object_uid, cascade_mask FROM wireframe_instanced) WHERE cascade_mask = 7",
+  "t": "436",
+  "v": 436.0
+ },
+ "ladder_1": {
+  "sql": "SELECT round((SELECT 1.0/sqrt(m10*m10+m11*m11+m12*m12) FROM cascades WHERE cascade=1)/(1.0/sqrt(m10*m10+m11*m11+m12*m12)),2) FROM cascades WHERE cascade=0",
+  "t": "\u00d72.28",
+  "v": 2.28
+ },
+ "ladder_2": {
+  "sql": "SELECT round((SELECT 1.0/sqrt(m10*m10+m11*m11+m12*m12) FROM cascades WHERE cascade=2)/(1.0/sqrt(m10*m10+m11*m11+m12*m12)),2) FROM cascades WHERE cascade=1",
+  "t": "\u00d72.45",
+  "v": 2.45
+ },
+ "light_x": {
+  "sql": "SELECT round(m20/sqrt(m20*m20+m21*m21+m22*m22),3) FROM cascades WHERE cascade=0",
+  "t": "0.747",
+  "v": 0.747
+ },
+ "light_z": {
+  "sql": "SELECT round(m22/sqrt(m20*m20+m21*m21+m22*m22),3) FROM cascades WHERE cascade=0",
+  "t": "0.664",
+  "v": 0.664
+ },
+ "mapsize": {
+  "sql": "SELECT count(*) FROM (SELECT DISTINCT caster_uid, world_hx, world_hy, world_hz FROM facts) WHERE greatest(world_hx,world_hy,world_hz) > 5000",
+  "t": "60",
+  "v": 60.0
+ },
+ "max_passes": {
+  "sql": "SELECT max(n) FROM (SELECT caster_uid, count(DISTINCT pass_id) n FROM visits GROUP BY 1)",
+  "t": "7",
+  "v": 7.0
+ },
+ "median_exact": {
+  "sql": "SELECT quantile_cont(rebuild_error,0.5) FROM placements WHERE verified=1",
+  "t": "4e-06",
+  "v": 4e-06
+ },
+ "median_none": {
+  "sql": "SELECT round(quantile_cont(centre_error,0.5),2) FROM placements WHERE verified=0 AND centre_error > 0.35 AND extent_overflow > 0.02",
+  "t": "0.63",
+  "v": 0.63
+ },
+ "median_posed": {
+  "sql": "SELECT round(quantile_cont(centre_error,0.5),2) FROM placements WHERE verified=0 AND centre_error <= 0.35",
+  "t": "0.14",
+  "v": 0.14
+ },
+ "mesh_chains": {
+  "held": true,
+  "t": "2,239",
+  "why": "build_data.py, mesh chains walked before the two malformed dropped"
+ },
+ "mesh_neg_z": {
+  "held": true,
+  "t": "2,183",
+  "why": "recomputed from the local vertex buffers in dumps/originals, over the 2,232 meshes that ship as wireframe; those buffers are never published, so this is the one geometry claim you cannot re-run"
+ },
+ "near_c0_c1": {
+  "sql": "SELECT round(abs((SELECT m23 FROM cascades WHERE cascade=1)-(SELECT m23 FROM cascades WHERE cascade=0))/sqrt(m20*m20+m21*m21+m22*m22)) FROM cascades WHERE cascade=0",
+  "t": "656",
+  "v": 656.0
+ },
+ "near_c1_c2": {
+  "sql": "SELECT round(abs((SELECT m23 FROM cascades WHERE cascade=2)-(SELECT m23 FROM cascades WHERE cascade=1))/sqrt(m20*m20+m21*m21+m22*m22)) FROM cascades WHERE cascade=0",
+  "t": "1,653",
+  "v": 1653.0
+ },
+ "neither": {
+  "sql": "SELECT count(*) FROM visits WHERE enrolled = 0 AND first_reject IS NULL",
+  "t": "46",
+  "v": 46.0
+ },
+ "not_enrolled": {
+  "sql": "SELECT count(*) FROM visits WHERE enrolled = 0",
+  "t": "4,267",
+  "v": 4267.0
+ },
+ "origin_depth": {
+  "sql": "SELECT round(m23,4) FROM cascades WHERE cascade=0",
+  "t": "0.9788",
+  "v": 0.9788
+ },
+ "outside": {
+  "sql": "SELECT count(*) FROM facts WHERE outside=1",
+  "t": "9,975",
+  "v": 9975.0
+ },
+ "passes": {
+  "sql": "SELECT count(DISTINCT pass_id) FROM visits",
+  "t": "21",
+  "v": 21.0
+ },
+ "pct_c0_exact": {
+  "sql": "SELECT round(100.0*count(DISTINCT caster_uid) FILTER (WHERE caster_uid IN (SELECT caster_uid FROM wireframe WHERE exact))/count(DISTINCT caster_uid),1) FROM facts WHERE outside=0 AND cascade=0",
+  "t": "31.3%",
+  "v": 31.3
+ },
+ "pct_c0_place": {
+  "sql": "SELECT round(100.0*count(DISTINCT caster_uid) FILTER (WHERE caster_uid IN (SELECT caster_uid FROM wireframe))/count(DISTINCT caster_uid),1) FROM facts WHERE outside=0 AND cascade=0",
+  "t": "77.0%",
+  "v": 77.0
+ },
+ "pct_c2_exact": {
+  "sql": "SELECT round(100.0*count(DISTINCT caster_uid) FILTER (WHERE caster_uid IN (SELECT caster_uid FROM wireframe WHERE exact))/count(DISTINCT caster_uid),1) FROM facts WHERE outside=0 AND cascade=2",
+  "t": "48.4%",
+  "v": 48.4
+ },
+ "pct_c2_place": {
+  "sql": "SELECT round(100.0*count(DISTINCT caster_uid) FILTER (WHERE caster_uid IN (SELECT caster_uid FROM wireframe))/count(DISTINCT caster_uid),1) FROM facts WHERE outside=0 AND cascade=2",
+  "t": "84.6%",
+  "v": 84.6
+ },
+ "pct_depth_unit": {
+  "sql": "SELECT round(100.0*sum(CASE WHEN depth_min>=0 AND depth_max<=1 THEN 1 ELSE 0 END)/count(*),1) FROM facts WHERE outside=0",
+  "t": "98.7%",
+  "v": 98.7
+ },
+ "pct_meshed": {
+  "sql": "SELECT round(100.0*(SELECT count(DISTINCT caster_uid) FROM wireframe)/count(DISTINCT caster_uid),1) FROM facts",
+  "t": "79.2%",
+  "v": 79.2
+ },
+ "pct_no_visit": {
+  "sql": "SELECT round(100.0*count(*) FILTER (WHERE kind_id IS NULL)/count(*),1) FROM facts",
+  "t": "34.2%",
+  "v": 34.2
+ },
+ "pct_seen": {
+  "sql": "SELECT round(100.0*count(*) FILTER (WHERE kind_id IS NOT NULL)/count(*),1) FROM facts",
+  "t": "65.8%",
+  "v": 65.8
+ },
+ "place_exact": {
+  "sql": "SELECT count(*) FROM placements WHERE verified=1",
+  "t": "2,884",
+  "v": 2884.0
+ },
+ "place_loose": {
+  "sql": "SELECT count(*) FROM placements WHERE verified=0 AND (centre_error <= 0.35 OR extent_overflow <= 0.02)",
+  "t": "1,973",
+  "v": 1973.0
+ },
+ "place_none": {
+  "sql": "SELECT count(*) FROM placements WHERE verified=0 AND centre_error > 0.35 AND extent_overflow > 0.02",
+  "t": "170",
+  "v": 170.0
+ },
+ "place_part": {
+  "sql": "SELECT count(*) FROM placements WHERE verified=0 AND centre_error > 0.35 AND extent_overflow <= 0.02",
+  "t": "1,041",
+  "v": 1041.0
+ },
+ "place_posed": {
+  "sql": "SELECT count(*) FROM placements WHERE verified=0 AND centre_error <= 0.35",
+  "t": "932",
+  "v": 932.0
+ },
+ "placements": {
+  "sql": "SELECT count(*) FROM placements",
+  "t": "5,027",
+  "v": 5027.0
+ },
+ "real_pair": {
+  "held": true,
+  "t": "91.0%",
+  "why": "build_meshes.py placement control, the real pairing"
+ },
+ "records": {
+  "sql": "SELECT count(DISTINCT caster_uid) FROM facts",
+  "t": "6,128",
+  "v": 6128.0
+ },
+ "rows_no_visit": {
+  "sql": "SELECT count(*) FROM facts WHERE kind_id IS NULL",
+  "t": "6,285",
+  "v": 6285.0
+ },
+ "shipped_meshes": {
+  "sql": "SELECT count(DISTINCT mesh_uid) FROM wireframe",
+  "t": "2,232",
+  "v": 2232.0
+ },
+ "shuffle_node": {
+  "held": true,
+  "t": "0.03%",
+  "why": "build_meshes.py placement control, nodes shuffled, exact tier only"
+ },
+ "shuffle_pair": {
+  "held": true,
+  "t": "0.31%",
+  "why": "build_meshes.py placement control, five shuffles of caster->node"
+ },
+ "shuffle_rows": {
+  "held": true,
+  "t": "sixteen",
+  "why": "shuffle_pair x placements rounded up, what luck alone admits"
+ },
+ "source_tris": {
+  "sql": "SELECT sum(t) FROM (SELECT DISTINCT mesh_uid, tri_count AS t FROM meshes WHERE mesh_uid IN (SELECT mesh_uid FROM wireframe))",
+  "t": "2,891,648",
+  "v": 2891648.0
+ },
+ "still_boxes": {
+  "sql": "SELECT count(DISTINCT caster_uid) FROM facts WHERE caster_uid NOT IN (SELECT caster_uid FROM wireframe)",
+  "t": "1,276",
+  "v": 1276.0
+ },
+ "sun_deg": {
+  "sql": "SELECT round(degrees(asin(abs(m22)/sqrt(m20*m20+m21*m21+m22*m22))),1) FROM cascades WHERE cascade=0",
+  "t": "41.6",
+  "v": 41.6
+ },
+ "surf_segments": {
+  "sql": "SELECT count(*) FROM shadow_depth",
+  "t": "81,963",
+  "v": 81963.0
+ },
+ "surf_step_c0": {
+  "sql": "SELECT round(median(sqrt((x1-x0)*(x1-x0)+(y1-y0)*(y1-y0)))) FROM shadow_depth WHERE cascade=0",
+  "t": "14",
+  "v": 14.0
+ },
+ "surf_step_c2": {
+  "sql": "SELECT round(median(sqrt((x1-x0)*(x1-x0)+(y1-y0)*(y1-y0)))) FROM shadow_depth WHERE cascade=2",
+  "t": "79",
+  "v": 79.0
+ },
+ "tables": {
+  "held": true,
+  "t": "8",
+  "why": "Parquet files this page registers"
+ },
+ "texels": {
+  "sql": "SELECT max(texels_w) FROM cascades",
+  "t": "2,048",
+  "v": 2048.0
+ },
+ "tri_max": {
+  "sql": "SELECT max(tri_count) FROM (SELECT coalesce(m.tri_count, 0) AS tri_count FROM facts f LEFT JOIN meshes m USING (caster_uid) WHERE f.outside = 0) WHERE tri_count > 0",
+  "t": "62,380",
+  "v": 62380.0
+ },
+ "tri_median": {
+  "sql": "SELECT quantile_disc(tri_count, 0.5) FROM (SELECT coalesce(m.tri_count, 0) AS tri_count FROM facts f LEFT JOIN meshes m USING (caster_uid) WHERE f.outside = 0) WHERE tri_count > 0",
+  "t": "396",
+  "v": 396.0
+ },
+ "tri_p2": {
+  "sql": "SELECT quantile_disc(tri_count, 0.02) FROM (SELECT coalesce(m.tri_count, 0) AS tri_count FROM facts f LEFT JOIN meshes m USING (caster_uid) WHERE f.outside = 0) WHERE tri_count > 0",
+  "t": "4",
+  "v": 4.0
+ },
+ "tri_p98": {
+  "sql": "SELECT quantile_disc(tri_count, 0.98) FROM (SELECT coalesce(m.tri_count, 0) AS tri_count FROM facts f LEFT JOIN meshes m USING (caster_uid) WHERE f.outside = 0) WHERE tri_count > 0",
+  "t": "6,810",
+  "v": 6810.0
+ },
+ "undecodable": {
+  "sql": "SELECT (SELECT count(DISTINCT caster_uid) FROM facts) - (SELECT count(*) FROM meshes)",
+  "t": "531",
+  "v": 531.0
+ },
+ "visit_rows": {
+  "sql": "SELECT count(*) FROM visits",
+  "t": "14,959",
+  "v": 14959.0
+ },
+ "wire_segments": {
+  "sql": "SELECT count(*) FROM wireframe",
+  "t": "1,531,026",
+  "v": 1531026.0
+ },
+ "with_reason": {
+  "sql": "SELECT count(*) FROM visits WHERE first_reject IS NOT NULL",
+  "t": "7,028",
+  "v": 7028.0
+ },
+ "world_z_floor": {
+  "sql": "SELECT -round(-quantile_cont(world_cz,0.02),-2) FROM (SELECT DISTINCT caster_uid, world_cz FROM facts)",
+  "t": "-3,000",
+  "v": -3000.0
+ },
+ "worst_rebuild": {
+  "sql": "SELECT max(greatest( abs(m00*world_cx+m01*world_cy+m02*world_cz+m03 - (abs(m00*world_hx)+abs(m01*world_hy)+abs(m02*world_hz)) - atlas_u0), abs(m00*world_cx+m01*world_cy+m02*world_cz+m03 + (abs(m00*world_hx)+abs(m01*world_hy)+abs(m02*world_hz)) - atlas_u1), abs(m10*world_cx+m11*world_cy+m12*world_cz+m13 - (abs(m10*world_hx)+abs(m11*world_hy)+abs(m12*world_hz)) - atlas_v0), abs(m10*world_cx+m11*world_cy+m12*world_cz+m13 + (abs(m10*world_hx)+abs(m11*world_hy)+abs(m12*world_hz)) - atlas_v1), abs(m20*world_cx+m21*world_cy+m22*world_cz+m23 - (abs(m20*world_hx)+abs(m21*world_hy)+abs(m22*world_hz)) - depth_min), abs(m20*world_cx+m21*world_cy+m22*world_cz+m23 + (abs(m20*world_hx)+abs(m21*world_hy)+abs(m22*world_hz)) - depth_max))) FROM facts JOIN cascades USING (cascade)",
+  "t": "3e-05",
+  "v": 3.2490468584001064e-05
+ }
+}

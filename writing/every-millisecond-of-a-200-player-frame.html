@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Every millisecond of a 200-player frame: a full frame budget for a closed Unity binary · Sébastien Vercammen</title>
+<meta name="description" content="A 200-player game averaged ~108 fps but dipped to 5–20 fps under load. I built a from-scratch profiler that attributed the whole frame across 107 phases with 0.0 ms unaccounted, then shipped drop-in fixes. Confirmed in the studio's Hotfix 1.0117.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;450;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/site.css">
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap bar">
+    <div class="id"><a href="../index.html">Sébastien Vercammen</a> <span>/ root-cause engineering</span></div>
+    <nav class="top">
+      <a href="../index.html#work">Work</a>
+      <a href="../index.html#approach">Approach</a>
+      <a href="../index.html#engage">Engage</a>
+      <a href="../index.html#contact">Contact</a>
+    </nav>
+    <div class="status"><span class="led" aria-hidden="true"></span>Open to select engagements</div>
+  </div>
+</header>
+
+<article>
+<div class="article-head">
+  <div class="wrap narrow">
+    <p class="kicker"><span>Reverse-engineering</span> · <span>Over the Top: WWI</span></p>
+    <h1>Every millisecond of a 200-player frame</h1>
+    <p class="dek">The game averaged ~108 fps and still stuttered. Under load, single frames froze for up to two-thirds of a second, and the average hid every one. I built a full frame budget for the closed binary, found where the time went, and the fixes shipped.</p>
+    <div class="article-meta">
+      <span><b>Studio</b> a small team</span>
+      <span><b>Engine</b> Unity · IL2CPP · D3D11-on-D3D12</span>
+      <span><b>Access</b> shipped binary, no source</span>
+      <span><b>Outcome</b> shipped · Hotfix 1.0117</span>
+    </div>
+  </div>
+</div>
+
+<div class="wrap narrow">
+  <div class="result-banner" data-reveal>
+    <div class="stat"><div class="k">Average frame</div><div class="v">~108 fps</div><div class="sub">~9.3 ms · by that number, nothing to fix</div></div>
+    <div class="stat"><div class="k">Confirmation</div><div class="v">Shipped</div><div class="sub">The studio's public Hotfix 1.0117 patch notes</div></div>
+  </div>
+</div>
+
+<div class="prose">
+  <p>Over the Top: WWI puts up to 200 players in one battle. It is a Unity title compiled through IL2CPP, running D3D11 on D3D12: closed binary, no source, no symbols. Across a session it averaged about 9.3 ms a frame, roughly 108 fps. By that number there was nothing to fix. It still stuttered.</p>
+
+  <div class="ba-num"><span class="from">5–20</span><span class="arr">→</span><span class="to">60+</span><span class="un">fps · p99.9 low</span></div>
+
+  <h2>The tail, not the average</h2>
+  <p>An average tells you what a typical frame costs, not what the worst one costs, and the worst frame is the one a player feels. In one session, 557 frames ran slower than 20 ms; the deepest ran 216 to 672 ms, a freeze of up to two-thirds of a second in a session whose mean looked healthy.</p>
+
+  <div class="chart">
+    <div class="clab"><span>Ten worst frames · one session</span><span>whole-frame ms</span></div>
+    <svg viewBox="0 0 100 40" role="img" aria-label="Bar chart of the ten worst frame times in one session, from 672 ms down to 196 ms, towering over a roughly 9 ms average budget">
+      <!-- 20 ms budget line, near the axis -->
+      <line x1="4" y1="33.1" x2="98" y2="33.1" class="s-accent" stroke-width="0.35" stroke-dasharray="1.4 1.4"/>
+      <text x="4" y="32" font-size="2.4" class="c-accent">20 ms budget line · ~9 ms average (108 fps)</text>
+      <!-- ten worst whole-frame times: 672,478,352,340,241,240,223,217,216,196 -->
+      <rect x="7"    y="5.20"  width="6.2" height="28.80" rx="0.6" class="c-symptom"/>
+      <rect x="15.9" y="13.51" width="6.2" height="20.49" rx="0.6" class="c-symptom"/>
+      <rect x="24.8" y="18.91" width="6.2" height="15.09" rx="0.6" class="c-symptom"/>
+      <rect x="33.7" y="19.43" width="6.2" height="14.57" rx="0.6" class="c-symptom"/>
+      <rect x="42.6" y="23.67" width="6.2" height="10.33" rx="0.6" class="c-symptom"/>
+      <rect x="51.5" y="23.71" width="6.2" height="10.29" rx="0.6" class="c-symptom"/>
+      <rect x="60.4" y="24.44" width="6.2" height="9.56"  rx="0.6" class="c-symptom"/>
+      <rect x="69.3" y="24.70" width="6.2" height="9.30"  rx="0.6" class="c-symptom"/>
+      <rect x="78.2" y="24.74" width="6.2" height="9.26"  rx="0.6" class="c-symptom"/>
+      <rect x="87.1" y="25.60" width="6.2" height="8.40"  rx="0.6" class="c-symptom"/>
+      <line x1="4" y1="34" x2="98" y2="34" class="s-line" stroke-width="0.4"/>
+      <text x="10.1" y="3.6"  font-size="3" class="c-symptom" text-anchor="middle">672 ms</text>
+      <text x="90.2" y="23.9" font-size="2.5" class="c-faint" text-anchor="middle">196 ms</text>
+    </svg>
+    <div class="cnote">The average frame was fine. These ten ran 20–75× over budget: the freezes players reported. Diagnosed, fixed, and shipped in <strong>Hotfix 1.0117</strong>.</div>
+  </div>
+
+  <p>No shipped tool measures the inside of this binary. Before touching a single dip, I needed to know where a frame's time goes.</p>
+
+  <h2>A full frame budget</h2>
+  <p>I built one from scratch: an inclusive-timing profiler that attributes the whole frame, with every millisecond assigned to the engine phase that spent it. It resolved the frame into <strong>107 phases</strong> with <strong>0.0 ms unaccounted</strong>. When a phase is expensive, there is nowhere for the cost to hide.</p>
+
+  <div class="media-slot">
+    <div class="icn">▶</div>
+    <div class="t">Video slot: before/after stutter, 200-player scene</div>
+    <div class="s">A crowded battle with a live frametime overlay. Before: the graph spikes and the image hitches. After, same scene: spikes flattened, motion continuous.</div>
+  </div>
+
+  <p>With the budget in hand, each dip traced to a phase. Five were worth fixing, each a drop-in change with a measured before/after and <strong>zero visual difference</strong>.</p>
+
+  <h2>The fixes</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>What was wrong</th><th>The change</th><th>Measured result</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>A per-frame update ran a 320-line state machine every single frame, ~99% of the time with nothing to do</td>
+        <td>Skip the redundant work when there is no state change</td>
+        <td class="ok">~3.96 ms/frame saved · 2,255 calls, 99% skipped</td>
+      </tr>
+      <tr>
+        <td>A culling pass cost time on the heaviest frames</td>
+        <td>Tighten the pass</td>
+        <td class="ok">−6 ms at p99.9 · −1.7 ms average</td>
+      </tr>
+      <tr>
+        <td>The IK system ran at full fidelity for every player regardless of distance or visibility</td>
+        <td>A level-of-detail gate on inverse-kinematics work</td>
+        <td class="ok">96.5 → 101 fps benchmarked · 73% of IK work skipped</td>
+      </tr>
+      <tr>
+        <td>Distant players were drawn at full cost</td>
+        <td>Draw distant players as impostors</td>
+        <td class="ok">+10–13 fps</td>
+      </tr>
+      <tr>
+        <td>UI update code churned every frame</td>
+        <td>Remove the redundant update churn</td>
+        <td class="ok">~0.2 ms</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="callout note">
+    <div class="lbl">Aggregate result</div>
+    <p>"Brings p99.9 dips from 5-20 fps to like 60+."</p>
+    <p>"consistent 120-160 fps, worst dips 60-90 fps (before, dips went to 5-20 fps)."</p>
+  </div>
+
+  <p>The average barely moved; it was already fine. What changed is the tail: the frames that used to freeze now stay inside a playable band.</p>
+
+  <h2>It shipped</h2>
+  <p>The findings went to the small team as drop-in fixes with the before/after for each. The public patch notes for <strong>Hotfix 1.0117</strong> list the same subsystems, in the studio's own words:</p>
+
+  <pre class="diagram"><code>Hotfix 1.0117: patch notes (studio's own wording)
+  • Optimized our Inverse Kinematic systems
+  • Optimized some UI update code
+  • Optimized projectile physics code
+  • Optimized the player smoothing code
+  • Optimized the tanks damage collision</code></pre>
+
+  <p>Each line maps to a subsystem in the frame budget above: the fixes appearing in a public shipped build, described by the people who shipped them.</p>
+
+  <div class="callout note">
+    <div class="lbl">From the studio</div>
+    <p>"you have no idea how happy i am with the help"</p>
+    <p>"means a lot for me and my small team"</p>
+  </div>
+
+  <div class="callout withheld">
+    <div class="lbl">Method withheld</div>
+    <p>This shows the symptom, the measurement, the before/after, and the shipped proof, but not how any of it was done: how the profiler attaches to and times a closed IL2CPP binary, how the offending code was located, or how each fix was applied and verified against the running game. The results are publishable; the instrumentation that produced them is not.</p>
+  </div>
+
+  <div class="media-slot">
+    <div class="icn">◱</div>
+    <div class="t">Image slot: 200 players, 1440p</div>
+    <div class="s">A full 200-player battle at 1440p: the load case the frame budget was built to survive, running smooth.</div>
+  </div>
+
+  <h2>The pattern</h2>
+  <p>Worst-case frames, not averages, are what users feel. Any system with a latency budget (a render loop, a request handler, a UI thread) is judged by its tail. An average can sit on top of a p99.9 an order of magnitude worse and hide it; optimize the mean and you optimize the thing nobody was complaining about.</p>
+  <p>And you can't fix what you can't measure. An inclusive budget that closes to zero, every phase accounted for and nothing unexplained, is what turns "it stutters sometimes" into a ranked list of specific, drop-in fixes. Build the ledger first; the expensive work names itself.</p>
+</div>
+
+<div class="wrap narrow">
+  <div class="article-foot">
+    <div class="row">
+      <a class="btn" href="../index.html#work">← All work</a>
+      <a class="btn primary" href="../index.html#contact">Have a performance dip like this? →</a>
+    </div>
+    <div class="next-list">
+      <a class="case" href="the-startup-crash-in-the-runtime.html"><div class="platform">Reverse-engineering · runtime</div><h3 style="font-size:19px">The startup crash in the runtime</h3></a>
+      <a class="case" href="one-savanna-tanked-the-framerate.html"><div class="platform">Reverse-engineering · performance</div><h3 style="font-size:19px">One savanna tanked the framerate</h3></a>
+    </div>
+  </div>
+</div>
+</article>
+
+<footer class="site">
+  <div class="wrap">
+    <span>Sébastien Vercammen · Belgium · remote</span>
+    <span>Root-cause engineering</span>
+  </div>
+</footer>
+
+<script src="../assets/vendor/prism.min.js"></script>
+<script src="../assets/js/site.js"></script>
+<!-- disabled 07/09: feedback widget. <script src="../assets/js/feedback.js"></script> -->
+</body>
+</html>

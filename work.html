@@ -1,0 +1,388 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sébastien Vercammen: root-cause engineering</title>
+<meta name="description" content="I find why complex systems fail (in data pipelines and in shipped, closed-source binaries) and prove the fix with measured results. Senior data engineer / tech lead and independent black-box performance engineer.">
+<!-- 07/09: every link into this page is commented out, so it is unlinked but still served.
+     noindex keeps it out of search, where it would otherwise compete with index.html - both
+     files still declare the same og:url. Remove this line when the page is linked again. -->
+<meta name="robots" content="noindex">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://sebastienvercammen.be/">
+<meta property="og:title" content="Sébastien Vercammen: root-cause engineering">
+<meta property="og:description" content="I find why complex systems fail (in data pipelines and in shipped, closed-source binaries) and prove the fix with measured results.">
+<meta property="og:image" content="https://sebastienvercammen.be/assets/img/rust-map-port.webp">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;450;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/site.css">
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<style>
+  /* Anchor targets for the case list on working-together.html, added 30/07. The header is
+     sticky and 61px tall including its border, so without this an incoming #case-… link parks
+     the article's own heading underneath it. Page-scoped rather than in site.css: these ids
+     exist only here. */
+  [id^="case-"]{scroll-margin-top:76px}
+  /* 01/08: same reason, for the section ids. #engage is now an inbound link from the chooser
+     on index.html, and the other three are this page's own nav. */
+  #engage,#work,#approach,#contact{scroll-margin-top:76px}
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap bar">
+    <div class="id"><a href="index.html">Sébastien Vercammen</a> <span>/ root-cause engineering</span></div>
+    <nav class="top">
+      <a href="#work">Work</a>
+      <a href="#approach">Approach</a>
+      <a href="#engage">Engage</a>
+      <a href="#contact">Contact</a>
+    </nav>
+    <div class="status"><span class="led" aria-hidden="true"></span>Open to select engagements</div>
+  </div>
+</header>
+
+<!-- ============ HERO ============ -->
+<section class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Root-cause engineering · data systems &amp; closed binaries</p>
+    <h1>I find why complex systems fail, and <em>prove</em> the fix.</h1>
+    <p class="lede">For a decade I've led data engineering as a tech lead in Python. In parallel I reverse-engineer shipped games at the binary level (no source, no symbols) and hand studios measured fixes. <strong>Same discipline both times: dig past the first plausible explanation to the actual root cause, then prove it with numbers anyone can check.</strong></p>
+
+    <div class="cta-row">
+      <a class="btn primary" href="#work">See the work</a>
+      <a class="btn" href="#engage">How to engage me</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PROOF BAR ============ -->
+<section class="divider-top" style="padding:44px 0">
+  <div class="wrap">
+    <div class="proofbar">
+      <div class="cell">
+        <div class="tag">Credited</div>
+        <div class="pnum">Official&nbsp;docs</div>
+        <p>A startup-crash fix I diagnosed for a shipped UE5 game was adopted into the studio's official docs, and credited to me by name.</p>
+      </div>
+      <div class="cell">
+        <div class="tag">Shipped</div>
+        <div class="pnum">Hotfix&nbsp;1.0117</div>
+        <p>Frame-time findings on a 200-player title, shipped in the studio's public hotfix, targeting the worst dips players felt.</p>
+      </div>
+      <div class="cell">
+        <div class="tag">Exact</div>
+        <div class="pnum">maxULP&nbsp;=&nbsp;0</div>
+        <p>A closed native world generator, reverse-engineered and rebuilt from scratch, with output byte-for-byte identical to the original.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ENGAGE (two tracks + self-qualify) ============ -->
+<section id="engage" class="divider-top">
+  <div class="wrap">
+    <div class="section-head"><h2>Two ways to work with me</h2></div>
+    <div class="cap-cols" style="margin-top:32px">
+      <div>
+        <h4 style="color:var(--data)">For data teams</h4>
+        <ul class="cap-list">
+          <li><b>"Something is broken and nobody can figure out why"</b><span class="d">A pipeline produces wrong results, behaves unpredictably, or fails intermittently and the obvious fixes didn't hold. I dig until the actual root cause is found, and hand you the report and the fix.</span></li>
+          <li><b>"We need to understand how this system actually works"</b><span class="d">Legacy code, an acquired product, a black-box component nobody fully understands anymore. I document what it really does, from the data flows up.</span></li>
+          <li><b>"We need custom tooling that requires understanding first"</b><span class="d">Pipelines and analysis tools that only work if you understand the system deeply before building. I go deep, then build.</span></li>
+        </ul>
+      </div>
+      <div>
+        <h4>For game studios</h4>
+        <ul class="cap-list">
+          <li><b>Crashes &amp; launch stability</b><span class="d">Startup crashes, hardware- or driver-specific failures you can't reproduce in-house: diagnosed at the binary level on your shipped build, no source required.</span></li>
+          <li><b>Performance &amp; frame-time</b><span class="d">CPU/GPU bottlenecks, stutter, worst-case dips, server tick collapse. I find where the time actually goes and prove the recovery with numbers.</span></li>
+          <li><b>Black-box investigation</b><span class="d">Elusive bugs in shipped, closed-source titles: root-caused, reproduced, and reported so your team can act. Several fixes credited or shipped by the studios.</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="eyebrow" style="margin-top:46px">Is this a fit?</p>
+    <div class="cap-cols" style="margin-top:20px">
+      <div>
+        <h4 style="color:var(--accent)">A good fit when</h4>
+        <ul class="cap-list">
+          <li><b>The obvious fixes already failed</b><span class="d">The problem is real and reproducible, and the first plausible explanations didn't hold. You want the actual root cause found, not another guess.</span></li>
+          <li><b>You want it proven, not asserted</b><span class="d">A before/after in numbers anyone can check, measured on the real system, matters more to you than a confident opinion.</span></li>
+          <li><b>Understanding has to come first</b><span class="d">A black box, legacy code, or a closed binary has to be understood before anything gets built on top of it.</span></li>
+          <li><b>Defined scope suits you</b><span class="d">A defined problem and a defined deliverable, handled async and written-first, fits how you want to work.</span></li>
+        </ul>
+      </div>
+      <div>
+        <h4 style="color:var(--symptom)">Probably not a fit when</h4>
+        <ul class="cap-list">
+          <li><b>You need ongoing staffing</b><span class="d">Regular staffing by the man-hour (a pair of hands to work through a backlog) is a different kind of hire. I take on a defined problem and see it through to a proven result.</span></li>
+          <li><b>It has to run on meetings</b><span class="d">Standups, live availability, managed time; I work async and written-first, which is what the deep focus depends on.</span></li>
+          <li><b>The conclusion is already locked in</b><span class="d">Being brought in as a reference expert or a second opinion is welcome. What doesn't work is a conclusion fixed on untested assumptions, with no room for an investigation that might disprove it.</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="section-sub" style="margin-top:34px"><strong style="color:var(--text)">How I work:</strong> a defined problem, a defined deliverable, a fixed price. The deliverable is a root-cause report, system documentation, custom tooling, or a working fix, and it speaks for itself.</p>
+    <div class="cta-row" style="margin-top:30px">
+      <a class="btn primary" href="#contact">Start a conversation →</a>
+      <a class="btn" href="#work">See the work first</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ WORK ============ -->
+<section id="work">
+  <div class="wrap">
+    <div class="section-head"><h2>Selected work</h2></div>
+    <p class="section-sub">Real investigations on shipped, closed-source software: each a measured problem turned into a measured result. Every write-up shows what was found and what it was worth, and withholds the method.</p>
+
+    <!-- ===== FEATURED 1 · Rust — image + hero number ===== -->
+    <article class="feat" id="case-rust-worldgen">
+      <div class="fhead">
+        <div class="plat"><b>Rust</b> · Facepunch Studios · Unity + native</div>
+        <span class="flag">Reverse-engineering</span>
+      </div>
+      <h3><!--<a href="writing/same-island-pixel-for-pixel.html">-->Same island, pixel for pixel<!--</a>--></h3>
+      <div class="feat-split">
+        <div class="col-a">
+          <p class="lead">The game's world is generated by a closed-source native library, with no public spec. Reproducing it means matching the original's floating-point math <strong>operation for operation</strong>, graded against the live game until the difference hit zero.</p>
+          <div class="hero-num eq" style="margin-top:26px"><span class="lhs">maxULP =</span><span class="zero">0</span><span class="u" style="text-transform:none; letter-spacing:.02em; line-height:1.5"><b style="display:block; color:var(--text); font-weight:600; font-size:14px; letter-spacing:.01em; margin-bottom:5px">maxULP: units in the last place, the smallest step a float can take</b>The largest gap from the game, measured that way, was zero: identical, not "close". Every noise primitive (800/800) and every terrain layer (height, biome, topology, splat) matched exactly.</span></div>
+          <!-- disabled 27/07: <a class="more" href="writing/same-island-pixel-for-pixel.html">Read the investigation →</a> -->
+        </div>
+        <div class="col-b">
+          <div class="renders">
+            <figure><img src="assets/img/rust-map-official.webp" alt="Official Rust map render, seed 1" loading="lazy"><div class="rcap">The game's own renderer</div></figure>
+            <figure><img src="assets/img/rust-map-port.webp" alt="Clean-room reimplementation render, seed 1, visually identical" loading="lazy"><div class="rcap after">My reimplementation</div></figure>
+          </div>
+        </div>
+      </div>
+      <div class="hero-slot" style="margin-top:28px">
+        <div class="icn">◱</div>
+        <div class="t">Hero visual: difference heatmap (official − reimplementation)</div>
+        <div class="s">The two renders subtracted, seed-1 terrain, colour-mapped: a near-black frame where the residual is nothing: "identical" shown by rendering the difference and having nothing appear.</div>
+      </div>
+    </article>
+
+    <!-- ===== FEATURED 2 · OTT — hero before/after + tail chart ===== -->
+    <article class="feat" id="case-ott-frame-budget">
+      <div class="fhead">
+        <div class="plat"><b>Over the Top: WWI</b> · Unity IL2CPP · 200-player</div>
+        <span class="flag">Shipped</span>
+      </div>
+      <h3><!--<a href="writing/every-millisecond-of-a-200-player-frame.html">-->Every millisecond of a 200-player frame<!--</a>--></h3>
+      <p style="font-family:var(--display); font-size:clamp(15px,1.5vw,18px); font-weight:500; color:var(--dim); margin:10px 0 0; max-width:52ch">The worst frames cut from 600+ ms freezes to a 60+ fps floor, diagnosed in a closed binary and shipped in the studio's public hotfix.</p>
+      <div class="feat-num-row">
+        <div class="col-a">
+          <div class="ba-num"><span class="from">5–20</span><span class="arr">→</span><span class="to">60+</span><span class="un">fps · p99.9 low</span></div>
+          <p class="lead">The average looked healthy, ~108 fps, which is exactly what hid the problem: the <strong>worst</strong> frames. 557 breached 20 ms in one session, the deepest freezing for two-thirds of a second. I built the closed binary a full frame budget, found the tax, and the fixes shipped in the studio's <strong>Hotfix 1.0117</strong>.</p>
+          <!-- disabled 27/07: <a class="more" href="writing/every-millisecond-of-a-200-player-frame.html">Read the investigation →</a> -->
+        </div>
+        <div class="col-b">
+          <div class="chart">
+            <div class="clab"><span>Ten worst frames · one session</span><span>whole-frame ms</span></div>
+            <svg viewBox="0 0 100 40" role="img" aria-label="Bar chart of the ten worst frame times in one session, from 672 ms down to 196 ms, towering over a 20 ms frame budget">
+              <!-- ten worst whole-frame times: 672,478,352,340,241,240,223,217,216,196 -->
+              <rect x="7"    y="5.20"  width="6.2" height="28.80" rx="0.6" class="c-symptom"/>
+              <rect x="15.9" y="13.51" width="6.2" height="20.49" rx="0.6" class="c-symptom"/>
+              <rect x="24.8" y="18.91" width="6.2" height="15.09" rx="0.6" class="c-symptom"/>
+              <rect x="33.7" y="19.43" width="6.2" height="14.57" rx="0.6" class="c-symptom"/>
+              <rect x="42.6" y="23.67" width="6.2" height="10.33" rx="0.6" class="c-symptom"/>
+              <rect x="51.5" y="23.71" width="6.2" height="10.29" rx="0.6" class="c-symptom"/>
+              <rect x="60.4" y="24.44" width="6.2" height="9.56"  rx="0.6" class="c-symptom"/>
+              <rect x="69.3" y="24.70" width="6.2" height="9.30"  rx="0.6" class="c-symptom"/>
+              <rect x="78.2" y="24.74" width="6.2" height="9.26"  rx="0.6" class="c-symptom"/>
+              <rect x="87.1" y="25.60" width="6.2" height="8.40"  rx="0.6" class="c-symptom"/>
+              <!-- the 20 ms budget, drawn to the same scale as the bars: 0.86 units tall.
+                   Given area and a label at the axis, because as a dashed hairline it was
+                   invisible against the grid — and the chart's whole point is that the budget is
+                   that thin, so it has to be legible. Same treatment as for-game-studios.html. -->
+              <rect x="4" y="33.14" width="94" height="0.86" class="c-accent" opacity=".3"/>
+              <line x1="4" y1="33.14" x2="98" y2="33.14" class="s-accent" stroke-width="0.3"/>
+              <line x1="4" y1="34" x2="98" y2="34" class="s-line" stroke-width="0.4"/>
+              <text x="4" y="38.4"  font-size="2.6" class="c-accent">← 20 ms frame budget</text>
+              <text x="98" y="38.4" font-size="2.4" class="c-faint" text-anchor="end">~9 ms average · 108 fps</text>
+              <text x="10.1" y="3.6"  font-size="3" class="c-symptom" text-anchor="middle">672 ms</text>
+              <text x="90.2" y="23.4" font-size="2.6" class="c-symptom" text-anchor="middle">196 ms</text>
+            </svg>
+            <div class="cnote">The average frame was fine. These ten ran <strong>10–34× over budget</strong>, the freezes players reported. Diagnosed, fixed, and shipped in <strong>Hotfix 1.0117</strong>.</div>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <!-- ===== FEATURED 3 · Windrose — credit as hero + proof image ===== -->
+    <article class="feat" id="case-windrose-startup-crash">
+      <div class="fhead">
+        <div class="plat"><b>Windrose</b> · Unreal Engine 5 · D3D12</div>
+        <span class="flag">Credited</span>
+      </div>
+      <h3><!--<a href="writing/the-startup-crash-in-the-runtime.html">-->The startup crash in the runtime<!--</a>--></h3>
+      <div class="feat-split media-left">
+        <div class="col-a">
+          <p class="lead">A slice of players hard-crashed before the menu, and it never reproduced on the team's machines. I placed the fault <strong>below the game</strong>, in the shipped graphics runtime, and found the exact update that resolves it. The studio wrote it into their official docs:</p>
+          <div class="quote-hero"><q>D3D12Core.dll update … huge kudos to our friend @Seb for figuring this one out! ❤️</q><span class="src">Windrose team, announcing the <a href="https://windrose.support/faq/directx12-crash" target="_blank" rel="noopener">official FAQ entry</a></span></div>
+          <!-- Same correction as for-game-studios.html, 30/07: the quote is a staff announcement
+               in the community server, not a line from the FAQ. The linked article carries the
+               fix and is Official-authored with no attribution field, so it does not carry the
+               credit. Attributing the quote to the FAQ sent a reader to a page with no mention
+               of him. -->
+          <!-- disabled 27/07: <a class="more" href="writing/the-startup-crash-in-the-runtime.html">Read the investigation →</a> -->
+        </div>
+        <div class="col-b">
+          <figure style="margin:0"><img src="assets/img/proof-windrose-credit.webp" alt="Windrose's official FAQ crediting Seb by name for the startup-crash runtime fix" loading="lazy" style="width:100%;border:1px solid var(--line-2);border-radius:10px"><figcaption style="font-family:var(--mono);font-size:12px;color:var(--faint);text-align:center;margin-top:10px">Public credit, by name, from the studio's own team.</figcaption></figure>
+        </div>
+      </div>
+    </article>
+
+    <!-- ===== FEATURED 4 · haggis — scale contrast + patch-note proof ===== -->
+    <article class="feat" id="case-cotw-ghost-species">
+      <div class="fhead">
+        <div class="plat"><b>theHunter: Call of the Wild</b> · Expansive Worlds / Avalanche · Apex</div>
+        <span class="flag">Public patch</span>
+      </div>
+      <h3><!--<a href="writing/the-ghost-species.html">-->The ghost species<!--</a>--></h3>
+      <div class="feat-split">
+        <div class="col-a">
+          <p class="lead">A mission-reward species that appeared for some players and vanished forever for others: intermittent, and never reproducible on the team's machines. I traced the full root cause in a stripped, symbol-less binary.</p>
+          <div class="hero-num big" style="margin-top:24px"><span data-reveal data-count="100" data-from="0" data-suffix="%">100%</span><span class="u">reproduced from the binary and disclosed; the studio publicly confirmed the bug and committed a fix</span></div>
+          <!-- disabled 27/07: <a class="more" href="writing/the-ghost-species.html">Read the investigation →</a> -->
+        </div>
+        <div class="col-b">
+          <figure style="margin:0"><img src="assets/img/proof-haggis-patchnote.webp" alt="The studio's official announcement confirming the haggis spawn bug and a committed fix" loading="lazy" style="width:100%;border:1px solid var(--line-2);border-radius:10px"><figcaption style="font-family:var(--mono);font-size:12px;color:var(--faint);text-align:center;margin-top:10px">The studio's public confirmation: the exact bug the investigation diagnosed.</figcaption></figure>
+        </div>
+      </div>
+    </article>
+
+    <!-- ===== SECONDARY · compressed grid (two carry a compact chart) ===== -->
+    <p class="eyebrow" style="margin-top:52px">Further investigations</p>
+    <div class="work-grid">
+
+      <!-- GW2 — diagnostic, frame-breakdown spark -->
+      <article class="mcase" id="case-gw2-frame-cost">
+        <div class="mtop"><div><div class="mplat"><b>Guild Wars 2</b> · DirectX 11</div><h4><!--<a href="writing/what-a-frame-costs.html">-->What a frame costs<!--</a>--></h4></div><span class="flag ghost">Diagnostic</span></div>
+        <div class="msym">Built a 14-year-old engine its first live per-subsystem frame budget. It found shadows cost ~4 ms/frame, and that most of that work repeats unchanged.</div>
+        <div class="mfig">
+          <div class="hero-num big" style="font-size:clamp(38px,5vw,58px)"><span data-reveal data-count="76" data-from="0" data-suffix="%">76%</span><span class="u">of the shadow CPU work is recomputed identically, every frame</span></div>
+          <div class="stackbar" style="margin-top:16px" aria-hidden="true">
+            <span class="seg-sym" style="width:40.1%">shadows 40%</span>
+            <span class="seg-a" style="width:23.3%">view 23%</span>
+            <span class="seg-n" style="width:36.6%">other 37%</span>
+          </div>
+          <!-- disabled 27/07: <a class="mmore" style="margin-top:14px" href="writing/what-a-frame-costs.html">Read the investigation →</a> -->
+        </div>
+      </article>
+
+      <!-- Stormworks TPS — collapse + recovery spark -->
+      <article class="mcase" id="case-stormworks-tick">
+        <div class="mtop"><div><div class="mplat"><b>Stormworks</b> · native · embedded physics</div><h4><!--<a href="writing/the-tick-that-collapsed.html">-->The tick that collapsed<!--</a>--></h4></div></div>
+        <div class="msym">One save dragged a dedicated server from 64 to 10–17 ticks/second. A single stale physics record, ~50 ms every tick, fixed three independent ways, a no-op on healthy saves.</div>
+        <div class="mfig">
+          <div class="ba-num" style="font-size:clamp(30px,4vw,44px)"><span class="from">10–17</span><span class="arr">→</span><span class="to">~61</span><span class="un">TPS · ~99% recovered</span></div>
+          <div class="chart" style="margin-top:16px;padding:16px 16px 12px">
+            <svg viewBox="0 0 100 26" role="img" aria-label="Server tick rate steady at about 61, collapsing to about 15 the moment the problem save loads, then restored to about 61 after the fix">
+              <line x1="2" y1="5" x2="98" y2="5" class="s-faint" stroke-width="0.4" stroke-dasharray="1.4 1.4"/>
+              <text x="98" y="3.7" font-size="2.4" class="c-faint" text-anchor="end">64 nominal</text>
+              <line x1="30" y1="5" x2="30" y2="23" class="s-line" stroke-width="0.35" stroke-dasharray="1 1"/>
+              <line x1="63" y1="5" x2="63" y2="23" class="s-line" stroke-width="0.35" stroke-dasharray="1 1"/>
+              <text x="30" y="3.7" font-size="2.3" class="c-faint" text-anchor="middle">save loads</text>
+              <text x="63" y="3.7" font-size="2.3" class="c-faint" text-anchor="middle">fix applied</text>
+              <polyline points="3,6.4 30,6.4" fill="none" class="s-accent" stroke-width="1.5"/>
+              <polyline points="30,6.4 33,20 63,20" fill="none" class="s-symptom" stroke-width="1.5"/>
+              <polyline points="63,20 66,6.4 97,6.4" fill="none" class="s-accent" stroke-width="1.5"/>
+              <text x="4" y="9.9" font-size="2.6" class="c-accent">~61 TPS</text>
+              <text x="46.5" y="23.9" font-size="2.6" class="c-symptom" text-anchor="middle">~15 TPS · a crawl</text>
+              <text x="97" y="9.9" font-size="2.6" class="c-accent" text-anchor="end">~61 restored</text>
+            </svg>
+          </div>
+          <!-- disabled 27/07: <a class="mmore" style="margin-top:12px" href="writing/the-tick-that-collapsed.html">Read the investigation →</a> -->
+        </div>
+      </article>
+
+      <!-- Vurhonga — before/after number -->
+      <article class="mcase" id="case-cotw-savanna">
+        <div class="mtop"><div><div class="mplat"><b>theHunter: COTW</b> · Apex · D3D11</div><h4><!--<a href="writing/one-savanna-tanked-the-framerate.html">-->Why one savanna tanked the frame rate<!--</a>--></h4></div></div>
+        <div class="msym">A map the community called "laggy" really was ~42% slower than a comparable one. Bisected to two detail levels of a single grass mesh, 92% of the GPU cost.</div>
+        <div class="mfig">
+          <div class="ba-num" style="font-size:clamp(34px,4.6vw,52px)"><span class="from">143</span><span class="arr">→</span><span class="to" data-reveal data-count="256" data-from="143">256</span><span class="un">fps · +79%, gap 42%→5%</span></div>
+          <div class="hbars" style="margin-top:18px" aria-hidden="true">
+            <div class="hbar"><span class="hk">Grass mesh</span><span class="htrack"><span class="hfill sym" style="width:92%"></span></span><span class="hv sym">92%</span></div>
+            <div class="hbar"><span class="hk">Everything else</span><span class="htrack"><span class="hfill neu" style="width:8%"></span></span><span class="hv neu">8%</span></div>
+          </div>
+          <!-- disabled 27/07: <a class="mmore" style="margin-top:16px" href="writing/one-savanna-tanked-the-framerate.html">Read the investigation →</a> -->
+        </div>
+      </article>
+
+      <!-- DS4 — binary crash number -->
+      <article class="mcase" id="case-cotw-controller">
+        <div class="mtop"><div><div class="mplat"><b>theHunter: COTW</b> · Apex · D3D11</div><h4><!--<a href="writing/the-controller-that-crashed-the-game.html">-->The controller that crashed the game<!--</a>--></h4></div></div>
+        <div class="msym">Plugging in one specific controller crashed the game on launch, every time. Traced to an uninitialized audio object, and to a second crash the obvious fix would have caused.</div>
+        <div class="mfig">
+          <div class="ba-num" style="font-size:clamp(34px,4.6vw,52px)"><span class="from">100%</span><span class="arr">→</span><span class="to">0%</span><span class="un">crash rate · audio intact</span></div>
+          <div class="hbars" style="margin-top:18px" aria-hidden="true">
+            <div class="hbar"><span class="hk">With that pad</span><span class="htrack"><span class="hfill sym" style="width:100%"></span></span><span class="hv sym">every launch</span></div>
+            <div class="hbar"><span class="hk">After the fix</span><span class="htrack"><span class="hfill fix" style="width:2%"></span></span><span class="hv fix">0 crashes</span></div>
+          </div>
+          <!-- disabled 27/07: <a class="mmore" style="margin-top:16px" href="writing/the-controller-that-crashed-the-game.html">Read the investigation →</a> -->
+        </div>
+      </article>
+
+    </div>
+
+    <!-- ===== TERTIARY · slim rows (the intentionally-smaller stories) ===== -->
+    <p class="eyebrow" style="margin-top:52px">Also worth publishing</p>
+    <div style="margin-top:14px">
+      <article class="slim" id="case-null-result">
+        <div class="sfig"><span class="no">✗</span>&nbsp; null result</div>
+        <div class="sbody"><div class="sh"><!--<a href="writing/the-optimization-that-wasnt.html">-->The optimization that wasn't<!--</a>--></div><div class="sd">A promising physics optimization, killed before a line was written: reverse-engineering proved the engine already does it. Knowing when <em>not</em> to build is a result.</div></div>
+        <!-- disabled 27/07: <a class="sgo" href="writing/the-optimization-that-wasnt.html">Read →</a> -->
+      </article>
+      <article class="slim" id="case-gw2-vsm">
+        <div class="sfig"><span class="ok">◐</span>&nbsp; live build log</div>
+        <div class="sbody"><div class="sh"><!--<a href="writing/virtual-shadow-maps.html">-->Virtual shadow maps for a 14-year-old engine<!--</a>--></div><div class="sd">A modern shadow path grafted onto Guild Wars 2 from the outside, no source. First milestone proven and user-verified; more is in active development. Published in progress, on purpose.</div></div>
+        <!-- disabled 27/07: <a class="sgo" href="writing/virtual-shadow-maps.html">Follow along →</a> -->
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============ APPROACH ============ -->
+<section id="approach" class="divider-top">
+  <div class="wrap">
+    <p class="eyebrow">How the work is done</p>
+    <div class="section-head"><h2>Root cause, then proof</h2></div>
+    <p class="section-sub">Whether it's a data pipeline producing wrong numbers or a shipped binary stalling under load, the method is the same.</p>
+    <div class="method-grid">
+      <div class="cell"><div class="n">01</div><h3>Observe the symptom</h3><p>Reproduce it and measure it on the real system (frame times, tick rates, wrong rows, stalls) not on a guess or a story about what "should" be happening.</p></div>
+      <div class="cell"><div class="n">02</div><h3>Find the actual cause</h3><p>Trace it to the real root (through profiling, reverse engineering, data analysis, and custom tooling) and keep going past the first plausible explanation until the cause is proven.</p></div>
+      <div class="cell"><div class="n">03</div><h3>Prove the result</h3><p>Intervene, then re-measure. The deliverable is a before/after anyone can verify, plus the documentation to act on it, not a promise.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CONTACT ============ -->
+<section id="contact" class="contact divider-top">
+  <div class="wrap">
+    <h2>Have a problem the obvious fixes didn't solve?</h2>
+    <p>Send me a short description of the problem and what you've already tried. If it's a fit, I'll come back with a clear scope and a fixed price. If it's not, I'll tell you. Async and written-first works best, no obligation to start.</p>
+    <div class="cta-row">
+      <a class="btn primary" href="mailto:hello@sebastienvercammen.be">hello@sebastienvercammen.be</a>
+    </div>
+  </div>
+</section>
+
+<footer class="site">
+  <div class="wrap">
+    <span>Sébastien Vercammen · Belgium · remote</span>
+    <span>Root-cause engineering</span>
+  </div>
+</footer>
+
+<script src="assets/js/site.js"></script>
+<!-- disabled 07/09: feedback widget. <script src="assets/js/feedback.js"></script> -->
+</body>
+</html>

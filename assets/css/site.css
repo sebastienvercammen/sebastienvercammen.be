@@ -1,0 +1,553 @@
+/* ============================================================
+   Sébastien Vercammen — proof-of-work portfolio
+   Shared design system. Dark, technical, measured.
+   One stylesheet, no build step, no external runtime deps.
+   ============================================================ */
+
+:root{
+  /* surfaces */
+  --ink:#0E1217; --ink-2:#141A21; --ink-3:#1B232C; --ink-4:#222C37;
+  --line:rgba(232,238,244,.08); --line-2:rgba(232,238,244,.14); --line-3:rgba(232,238,244,.22);
+  /* background grid: two tiers, both quieter than --line so the grid never
+     competes with a real border drawn in --line */
+  --grid-minor:rgba(232,238,244,.022); --grid-major:rgba(232,238,244,.055);
+  /* the same two colours with the .42 --ink veil already folded in (alpha x .58).
+     This is exactly what the grid settles to below the hero, precomputed, so the
+     baseline layer needs no veil and therefore no element height. */
+  --grid-minor-set:rgba(232,238,244,.0128); --grid-major-set:rgba(232,238,244,.032);
+  /* text */
+  --text:#E7ECF1; --dim:#8B97A4; --faint:#586673;
+  /* accents: teal = the fix/result/inspection, amber = the symptom/warning */
+  --accent:#4FD6BC; --accent-2:#63e3ca; --accent-soft:rgba(79,214,188,.14);
+  --symptom:#E08A4A; --symptom-soft:rgba(224,138,74,.13);
+  /* track hues (subtle) */
+  --games:#4FD6BC; --data:#7CA8FF;
+  /* type */
+  --display:'Space Grotesk',system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,'SF Mono',monospace;
+  --body:'Inter',system-ui,sans-serif;
+  --maxw:1080px; --readw:720px;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+/* The baseline grid lives on the root element, whose background paints over the
+   whole canvas by definition. That covers any document height for free: nothing to
+   size, and no document-tall layer to rasterize. Pure tiles, no gradient, so it
+   never needs to know how long the page is. */
+html{
+  scroll-behavior:smooth;
+  background-color:var(--ink);
+  background-image:
+    linear-gradient(var(--grid-minor-set) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid-minor-set) 1px,transparent 1px),
+    linear-gradient(var(--grid-major-set) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid-major-set) 1px,transparent 1px);
+  background-size:32px 32px,32px 32px,128px 128px,128px 128px;
+  background-position:center top;
+}
+/* No position:relative. body::before is top-anchored against the initial
+   containing block, which is already pinned to the document origin — which is
+   exactly what a hero-only overlay wants. Making body the containing block is
+   what forced that overlay to the full document height. */
+body{
+  background:transparent; color:var(--text); font-family:var(--body);
+  font-size:17px; line-height:1.6; -webkit-font-smoothing:antialiased; font-weight:450;
+}
+
+/* ---- background grid · hero boost ----------------------------------------
+   Two-tier engineering grid: minor 32px, major 128px, both well under --line
+   so the grid never reads as strongly as a real border in the same colour.
+
+   The grid itself is on `html` above — pure tiles, infinite, free. This
+   element exists only to make the grid *brighter over the hero* and fade it
+   back to the baseline. That is the only part of the design that needs to
+   know a pixel height, so it is the only part with one: 1100px, where the
+   falloff settles. Below that it does not exist and costs nothing.
+
+   It was previously `inset:0` against a `position:relative` body, which made
+   it as tall as the whole document (~13,600px on the buyer page) — five
+   stacked background layers rasterized across the entire scroll length. That
+   is what made scrolling stutter.
+
+   `background-color` is opaque --ink on purpose: it hides the baseline grid
+   inside this band so the two never double-draw. At y=1100 the veil is at
+   exactly .42, which is the value already folded into --grid-*-set, so the
+   handover to the baseline is seamless.
+
+   Still no mask and no position:fixed. A fixed layer cannot be scrolled by
+   translation, and a mask forces the whole viewport to re-rasterize every
+   frame — together they cost a full software repaint per scroll frame when
+   GPU acceleration is off.
+------------------------------------------------------------------------- */
+body::before{
+  content:""; position:absolute; top:0; left:0; right:0; height:1100px;
+  z-index:-1; pointer-events:none;
+  background-color:var(--ink);
+  background-image:
+    /* topmost layer: --ink (#0E1217) at 0 → .42 by the element's bottom edge */
+    linear-gradient(to bottom,
+      rgba(14,18,23,0) 0,
+      rgba(14,18,23,0) 420px,
+      rgba(14,18,23,.42) 1100px),
+    linear-gradient(var(--grid-minor) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid-minor) 1px,transparent 1px),
+    linear-gradient(var(--grid-major) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid-major) 1px,transparent 1px);
+  background-size:100% 100%,32px 32px,32px 32px,128px 128px,128px 128px;
+  background-position:center top;
+  background-repeat:no-repeat,repeat,repeat,repeat,repeat;
+}
+.wrap{max-width:var(--maxw); margin:0 auto; padding:0 28px}
+.wrap.narrow{max-width:var(--readw)}
+img,video{max-width:100%; height:auto; display:block}
+
+/* ---- primitives ---- */
+.eyebrow{font-family:var(--mono); font-size:12px; font-weight:500; letter-spacing:.18em; text-transform:uppercase; color:var(--accent)}
+.eyebrow.data{color:var(--data)}
+.ph{color:var(--faint); border-bottom:1px dotted var(--faint)}
+a{color:var(--accent); text-decoration:none}
+a:hover{text-decoration:underline}
+:focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radius:2px}
+.mono{font-family:var(--mono)}
+hr{border:0; border-top:1px solid var(--line); margin:40px 0}
+
+/* ---- header / nav ---- */
+/* No backdrop-filter. It has to sample everything painted beneath it on every
+   frame the backdrop changes — i.e. every scroll frame — and without GPU
+   acceleration that is a software readback and blur per frame, on a sticky
+   element that is on screen the entire time. The alpha is raised from .72 to
+   .94 to compensate: at that opacity the blur was doing almost nothing anyway,
+   since there is no longer enough showing through to read. */
+header.site{position:sticky; top:0; z-index:20; background:rgba(14,18,23,.94); border-bottom:1px solid var(--line)}
+.bar{display:flex; align-items:center; justify-content:space-between; gap:16px; height:60px}
+.id{font-family:var(--mono); font-size:14px; font-weight:600; letter-spacing:.02em; white-space:nowrap}
+.id a{color:var(--text)} .id a:hover{text-decoration:none; color:var(--accent)}
+.id span{color:var(--faint)}
+nav.top{display:flex; align-items:center; gap:22px; font-family:var(--mono); font-size:13px}
+nav.top a{color:var(--dim)} nav.top a:hover{color:var(--text); text-decoration:none}
+nav.top a.active{color:var(--text)}
+.status{display:flex; align-items:center; gap:8px; font-family:var(--mono); font-size:12.5px; color:var(--dim); white-space:nowrap}
+.led{width:7px; height:7px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 0 rgba(79,214,188,.5); animation:pulse 2.6s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(79,214,188,.45)}70%{box-shadow:0 0 0 7px rgba(79,214,188,0)}100%{box-shadow:0 0 0 0 rgba(79,214,188,0)}}
+@media (max-width:720px){
+  nav.top{display:none}
+  /* header bar wraps onto multiple rows instead of overflowing the viewport */
+  .bar{flex-wrap:wrap; height:auto; row-gap:4px; padding-block:11px}
+  .id{white-space:normal}
+}
+
+/* ---- hero ---- */
+.hero{padding:92px 0 74px; border-bottom:1px solid var(--line)}
+.hero h1{font-family:var(--display); font-weight:600; line-height:1.05; font-size:clamp(36px,6vw,66px); letter-spacing:-.02em; max-width:16ch}
+.hero h1 em{font-style:normal; color:var(--accent)}
+.lede{margin-top:24px; max-width:56ch; font-size:clamp(17px,2vw,20px); color:var(--dim)}
+.lede strong{color:var(--text); font-weight:500}
+
+/* ---- reading / before-after gauge (signature component) ---- */
+.reading{background:var(--ink-2); border:1px solid var(--line-2); border-radius:10px; padding:24px 26px 28px}
+.reading .head{display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:10px}
+.reading .label{font-family:var(--mono); font-size:12.5px; letter-spacing:.04em; color:var(--dim)}
+.reading .delta{font-family:var(--mono); font-weight:600; font-size:15px; color:var(--accent)}
+.reading .delta.down{color:var(--accent)} /* lower-is-better still shown as a win */
+.gauge{margin-top:20px; display:grid; gap:13px}
+.row{display:grid; grid-template-columns:64px 1fr auto; align-items:center; gap:14px}
+.row .tag{font-family:var(--mono); font-size:11.5px; text-transform:uppercase; letter-spacing:.1em; color:var(--faint)}
+.track{height:14px; background:var(--ink-3); border-radius:7px; overflow:hidden}
+.fill{height:100%; border-radius:7px; transition:width 1.1s cubic-bezier(.2,.7,.2,1)}
+.fill.before{background:var(--symptom); opacity:.62}
+.fill.after{background:var(--accent)}
+.val{font-family:var(--mono); font-weight:600; font-size:15px; min-width:82px; text-align:right}
+.val.before{color:var(--symptom)} .val.after{color:var(--accent)}
+.reading .note{margin-top:16px; font-size:14px; color:var(--faint); font-family:var(--mono)}
+.mini .row{grid-template-columns:54px 1fr auto}
+.mini .track{height:11px} .mini .val{font-size:14px; min-width:64px}
+
+/* ---- section scaffolding ---- */
+section{padding:64px 0}
+.section-head{display:flex; align-items:baseline; gap:16px; flex-wrap:wrap}
+.section-head h2{font-family:var(--display); font-weight:600; font-size:clamp(25px,3.4vw,33px); letter-spacing:-.01em}
+.section-sub{color:var(--dim); max-width:60ch; margin-top:6px; font-size:15.5px}
+.divider-top{border-top:1px solid var(--line)}
+
+/* ---- method grid ---- */
+.method-grid{margin-top:28px; display:grid; grid-template-columns:repeat(3,1fr); grid-auto-rows:1fr; align-items:stretch; gap:1px; background:var(--line); border:1px solid var(--line); border-radius:10px; overflow:hidden}
+.cell{background:var(--ink); padding:26px 24px}
+.cell .n{font-family:var(--mono); font-size:12px; color:var(--accent); letter-spacing:.1em}
+.cell h3{font-family:var(--display); font-weight:500; font-size:19px; margin:12px 0 8px}
+.cell p{font-size:14.5px; color:var(--dim)}
+
+/* ---- work / case cards ---- */
+.cards{margin-top:30px; display:grid; gap:20px}
+.case{background:var(--ink-2); border:1px solid var(--line); border-radius:12px; padding:28px 30px 24px; transition:border-color .2s, transform .2s}
+a.case:hover{text-decoration:none; border-color:var(--line-3); transform:translateY(-2px)}
+.case.flagship{border-color:var(--line-2); box-shadow:0 0 0 1px var(--accent-soft) inset}
+.case .top{display:flex; justify-content:space-between; align-items:flex-start; gap:18px; flex-wrap:wrap}
+.case .platform{font-family:var(--mono); font-size:12px; letter-spacing:.13em; text-transform:uppercase; color:var(--accent)}
+.case .platform.data{color:var(--data)}
+.case h3{font-family:var(--display); font-weight:600; font-size:23px; margin-top:8px; letter-spacing:-.01em; color:var(--text)}
+.flag{font-family:var(--mono); font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink); background:var(--accent); padding:5px 9px; border-radius:5px; font-weight:600; white-space:nowrap}
+.flag.ghost{background:transparent; color:var(--dim); border:1px solid var(--line-2)}
+.grid2{margin-top:20px; display:grid; grid-template-columns:1.1fr 1fr; gap:30px}
+.field{margin-bottom:15px}
+.field .k{font-family:var(--mono); font-size:11.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--faint); margin-bottom:5px}
+.field .v{font-size:15.5px; color:var(--text)}
+.field .v.sym{color:var(--symptom); font-family:var(--mono); font-weight:500}
+.field .v.fix{color:var(--accent); font-family:var(--mono); font-weight:500}
+.proof{margin-top:8px; padding-top:15px; border-top:1px solid var(--line); font-family:var(--mono); font-size:13.5px; color:var(--dim)}
+.readmore{margin-top:14px; font-family:var(--mono); font-size:13px; color:var(--accent)}
+
+/* ---- capabilities ---- */
+.cap-cols{display:grid; grid-template-columns:1fr 1fr; gap:48px; margin-top:26px}
+.cap-cols h4{font-family:var(--mono); font-size:12.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); margin-bottom:18px}
+.cap-list{list-style:none; display:flex; flex-direction:column; gap:16px}
+.cap-list li{display:flex; flex-direction:column; gap:4px; padding-left:16px; border-left:2px solid var(--line-2)}
+.cap-list li b{color:var(--text); font-weight:600; font-size:15.5px}
+.cap-list li .d{color:var(--dim); font-size:14px; line-height:1.5}
+
+/* ---- buttons ---- */
+.cta-row{margin-top:28px; display:flex; gap:14px; flex-wrap:wrap}
+/* display:inline-block is load-bearing. Without it .btn is inline, so its padding overflows the
+   line box instead of reserving space and any margin-top is ignored — fine inside .cta-row, which
+   is flex and blockifies its children, broken anywhere else (it overlapped the paragraph above it
+   in every .callout on for-game-studios.html). Blockified flex items are unaffected by this. */
+.btn{display:inline-block; font-family:var(--mono); font-size:14px; font-weight:500; padding:13px 20px; border-radius:7px; border:1px solid var(--line-2); color:var(--text); transition:border-color .2s,background .2s}
+.btn:hover{text-decoration:none; border-color:var(--accent)}
+.btn.primary{background:var(--accent); color:var(--ink); border-color:var(--accent); font-weight:600}
+.btn.primary:hover{background:var(--accent-2)}
+
+/* ---- contact + footer ---- */
+.contact h2{font-family:var(--display); font-weight:600; font-size:clamp(27px,4vw,38px); letter-spacing:-.01em; max-width:20ch}
+.contact p{margin-top:16px; color:var(--dim); max-width:56ch}
+footer.site{padding:26px 0; border-top:1px solid var(--line); font-family:var(--mono); font-size:12.5px; color:var(--faint)}
+footer.site .wrap{display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px}
+footer.site a{color:var(--faint)} footer.site a:hover{color:var(--dim)}
+
+/* ============================================================
+   ARTICLE PAGES  (.prose lives inside .wrap.narrow)
+   ============================================================ */
+.article-head{padding:64px 0 34px; border-bottom:1px solid var(--line)}
+.article-head .kicker{font-family:var(--mono); font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); display:flex; gap:12px; flex-wrap:wrap; align-items:center}
+.article-head .kicker.data{color:var(--data)}
+.article-head h1{font-family:var(--display); font-weight:600; line-height:1.08; font-size:clamp(30px,4.6vw,50px); letter-spacing:-.02em; margin-top:18px; max-width:20ch}
+.article-head .dek{margin-top:20px; font-size:clamp(17px,2vw,20px); color:var(--dim); max-width:60ch}
+.article-meta{margin-top:24px; display:flex; gap:20px; flex-wrap:wrap; font-family:var(--mono); font-size:12.5px; color:var(--faint)}
+.article-meta b{color:var(--dim); font-weight:500}
+
+/* result banner — the measured headline of a case */
+.result-banner{margin:34px 0 0; display:grid; gap:16px; grid-template-columns:1fr 1fr; }
+@media (max-width:640px){ .result-banner{grid-template-columns:1fr} }
+.stat{background:var(--ink-2); border:1px solid var(--line-2); border-radius:10px; padding:20px 22px}
+.stat .k{font-family:var(--mono); font-size:11.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--faint)}
+.stat .v{font-family:var(--mono); font-weight:600; font-size:clamp(22px,3vw,30px); margin-top:8px}
+.stat .v.sym{color:var(--symptom)} .stat .v.fix{color:var(--accent)}
+.stat .sub{color:var(--dim); font-size:13.5px; margin-top:6px}
+
+.prose{max-width:var(--maxw); margin:0 auto; padding:44px 28px 20px; font-size:17px}
+.prose > *{max-width:var(--readw); margin-left:auto; margin-right:auto}
+.prose h2{font-family:var(--display); font-weight:600; font-size:clamp(23px,3vw,30px); letter-spacing:-.01em; margin:52px auto 4px; padding-top:8px}
+.prose h3{font-family:var(--display); font-weight:600; font-size:20px; margin:34px auto 2px}
+.prose p{margin:18px auto; color:#D5DCE3}
+.prose strong{color:var(--text); font-weight:600}
+.prose em{color:var(--text)}
+.prose a{border-bottom:1px solid var(--accent-soft)}
+.prose ul,.prose ol{margin:18px auto; padding-left:24px; color:#D5DCE3}
+.prose li{margin:9px 0}
+.prose blockquote{margin:26px auto; padding:4px 0 4px 22px; border-left:3px solid var(--accent); color:var(--text); font-size:19px}
+.prose blockquote cite{display:block; margin-top:10px; font-style:normal; font-family:var(--mono); font-size:13px; color:var(--dim)}
+
+/* code + ASCII diagrams — must preserve whitespace, scroll horizontally, never wrap */
+.prose pre{
+  max-width:100%; margin:26px auto; padding:20px 22px; background:var(--ink-2);
+  border:1px solid var(--line-2); border-radius:10px; overflow-x:auto;
+  font-family:var(--mono); font-size:13px; line-height:1.5; color:#C9D3DC;
+  -webkit-overflow-scrolling:touch;
+}
+.prose pre code{font-family:inherit; font-size:inherit; white-space:pre; color:inherit; background:none; padding:0; border:0}
+.prose :not(pre) > code{font-family:var(--mono); font-size:.9em; background:var(--ink-3); border:1px solid var(--line); border-radius:4px; padding:1px 6px; color:var(--accent-2)}
+/* Diagrams use Unicode box-drawing; force one system mono with consistent box metrics
+   (the loaded Plex Mono webfont subset lacks the verticals, which broke alignment) and
+   a tight line-height so the │ ║ segments connect between rows. */
+.prose pre.diagram{background:var(--ink); color:var(--dim); font-size:12.5px;
+  font-family:"Cascadia Code","Cascadia Mono","Consolas","DejaVu Sans Mono",ui-monospace,"Liberation Mono",monospace;
+  line-height:1.2}
+/* On phones, code/diagram blocks fill the column and scroll their content internally
+   (box never exceeds the viewport). Only at desktop widths — where the viewport is
+   guaranteed wide enough — do the boxes shrink-wrap to their content and diagrams get
+   the extra breathing width. This avoids the width:fit-content + max-width overflow that
+   dragged the whole page into horizontal scroll on mobile. */
+.prose figure.wide, .prose pre.wide{max-width:100%}
+@media (min-width:900px){
+  .prose pre{width:fit-content}
+  .prose figure.wide, .prose pre.wide{max-width:960px}
+}
+
+/* tables */
+.prose .tablewrap{max-width:960px; margin:26px auto; overflow-x:auto}
+.prose table{border-collapse:collapse; width:100%; font-size:14px; font-family:var(--mono)}
+.prose th,.prose td{border:1px solid var(--line-2); padding:9px 14px; text-align:left}
+.prose th{color:var(--accent); font-weight:600; background:var(--ink-2); letter-spacing:.02em}
+.prose td{color:#C9D3DC}
+.prose td.ok{color:var(--accent)} .prose td.bad{color:var(--symptom)}
+
+/* figures: images + video with captions */
+.prose figure{margin:32px auto}
+.prose figure img,.prose figure video{width:100%; border:1px solid var(--line-2); border-radius:10px; background:var(--ink-2)}
+.prose figcaption{margin-top:10px; font-family:var(--mono); font-size:12.5px; color:var(--faint); text-align:center}
+
+/* video placeholder slot — the "show, don't tell" holder before Seb records */
+.media-slot{max-width:960px; margin:32px auto; border:1px dashed var(--line-3); border-radius:12px; background:
+  repeating-linear-gradient(-45deg, rgba(255,255,255,.012) 0 12px, transparent 12px 24px), var(--ink-2);
+  aspect-ratio:16/9; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; text-align:center; padding:24px}
+.media-slot .icn{width:44px; height:44px; border-radius:50%; border:1px solid var(--line-3); display:flex; align-items:center; justify-content:center; color:var(--accent)}
+.media-slot .t{font-family:var(--mono); font-size:13px; color:var(--dim); letter-spacing:.02em}
+.media-slot .s{font-family:var(--mono); font-size:12px; color:var(--faint); max-width:52ch}
+.media-slot.tall{aspect-ratio:4/3}
+
+/* details / progressive-disclosure ("open the internals") */
+.prose details{max-width:var(--readw); margin:24px auto; border:1px solid var(--line-2); border-radius:10px; background:var(--ink-2); overflow:hidden}
+.prose details[open]{background:var(--ink-2)}
+.prose summary{cursor:pointer; padding:15px 20px; font-family:var(--mono); font-size:13.5px; color:var(--accent); list-style:none; display:flex; align-items:center; gap:10px}
+.prose summary::-webkit-details-marker{display:none}
+.prose summary::before{content:"▸"; color:var(--accent); transition:transform .2s}
+.prose details[open] summary::before{transform:rotate(90deg)}
+.prose details > *:not(summary){margin-left:20px; margin-right:20px}
+.prose details > pre{max-width:none; margin:0 20px 18px}
+.prose details[open] summary{border-bottom:1px solid var(--line-2)}
+.prose details[open] > pre:first-of-type{margin-top:16px}
+
+/* callouts: the confidentiality line, made a feature not an apology */
+.callout{max-width:var(--readw); margin:28px auto; border-radius:10px; padding:18px 22px; font-size:15px; border:1px solid var(--line-2); background:var(--ink-2)}
+.callout .lbl{font-family:var(--mono); font-size:11.5px; letter-spacing:.12em; text-transform:uppercase; margin-bottom:8px}
+.callout.withheld{border-color:var(--symptom-soft); background:var(--symptom-soft)}
+.callout.withheld .lbl{color:var(--symptom)}
+.callout.note{border-left:3px solid var(--accent)}
+.callout.note .lbl{color:var(--accent)}
+.callout p{margin:6px 0 0; color:#D5DCE3}
+
+/* a single inline math formula, rendered without a math lib */
+.formula{max-width:var(--readw); margin:26px auto; text-align:center; font-family:var(--mono); font-size:16px; color:var(--text)}
+.formula sub{font-size:.75em}
+
+/* article footer / next */
+.article-foot{border-top:1px solid var(--line); margin-top:48px; padding:40px 0 64px}
+.article-foot .row{display:flex; justify-content:space-between; gap:20px; flex-wrap:wrap; align-items:center}
+.next-list{margin-top:26px; display:grid; gap:14px; grid-template-columns:1fr 1fr}
+@media (max-width:640px){ .next-list{grid-template-columns:1fr} }
+
+/* ---- responsive ---- */
+@media (max-width:760px){
+  /* tighter pitch so the grid still reads as structure on a narrow viewport,
+     and an earlier settle since the hero is shorter here */
+  /* the baseline tiles have to change pitch too, or the boost and the baseline
+     stop lining up at the handover */
+  html{
+    background-size:24px 24px,24px 24px,96px 96px,96px 96px;
+  }
+  body::before{
+    height:700px;
+    background-image:
+      linear-gradient(to bottom,
+        rgba(14,18,23,0) 0,
+        rgba(14,18,23,0) 260px,
+        rgba(14,18,23,.42) 700px),
+      linear-gradient(var(--grid-minor) 1px,transparent 1px),
+      linear-gradient(90deg,var(--grid-minor) 1px,transparent 1px),
+      linear-gradient(var(--grid-major) 1px,transparent 1px),
+      linear-gradient(90deg,var(--grid-major) 1px,transparent 1px);
+    background-size:100% 100%,24px 24px,24px 24px,96px 96px,96px 96px;
+  }
+  .method-grid{grid-template-columns:1fr}
+  .grid2{grid-template-columns:1fr; gap:16px}
+  .cap-cols{grid-template-columns:1fr; gap:34px}
+  .hero{padding:60px 0 52px}
+  section{padding:52px 0}
+}
+@media (prefers-reduced-motion:reduce){ *{animation:none!important} .fill{transition:none!important} html{scroll-behavior:auto} a.case:hover{transform:none} a.feat:hover,a.mcase:hover,a.slim:hover{transform:none} }
+
+/* ============================================================
+   HOME v2 — featured work: hierarchy, hero numbers, varied charts
+   Presentation only. Content, proof-tiering, confidentiality unchanged.
+   ============================================================ */
+
+/* --- proof bar (replaces the proof strip; equal-height guaranteed) --- */
+.proofbar{margin-top:30px; display:grid; grid-template-columns:repeat(3,1fr); grid-auto-rows:1fr; align-items:stretch;
+  gap:1px; background:var(--line); border:1px solid var(--line); border-radius:12px; overflow:hidden}
+.proofbar .cell{background:var(--ink); padding:30px 28px; display:flex; flex-direction:column}
+.proofbar .tag{font-family:var(--mono); font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--accent)}
+.proofbar .pnum{font-family:var(--display); font-weight:600; font-size:clamp(24px,3.1vw,34px); letter-spacing:-.02em; line-height:1.02; margin:16px 0 8px; color:var(--text)}
+.proofbar p{font-size:14px; color:var(--dim); margin-top:auto; padding-top:12px; line-height:1.5}
+
+/* --- hero-scale numbers --- */
+.hero-num{font-family:var(--display); font-weight:600; letter-spacing:-.035em; line-height:.86; color:var(--accent)}
+.hero-num.mega{font-size:clamp(60px,11vw,128px)}
+.hero-num.big{font-size:clamp(44px,7.5vw,92px)}
+/* equation form: supporting label + giant figure, baseline-aligned (Rust maxULP) */
+.hero-num.eq{display:flex; align-items:baseline; gap:.2em; flex-wrap:wrap; line-height:.9; color:var(--text)}
+.hero-num.eq .lhs{font-size:clamp(26px,3.4vw,42px); letter-spacing:-.02em}
+.hero-num.eq .zero{font-size:clamp(72px,11vw,132px); color:var(--accent); letter-spacing:-.04em}
+.hero-num.eq .u{flex:0 0 100%; margin-top:14px}
+.hero-num .u{display:block; font-family:var(--mono); font-size:13px; font-weight:500; letter-spacing:.04em; color:var(--dim); margin-top:16px; text-transform:uppercase; line-height:1.4}
+/* before → after headline number */
+.ba-num{font-family:var(--display); font-weight:600; letter-spacing:-.02em; line-height:1; font-size:clamp(34px,5.4vw,64px); display:flex; align-items:baseline; gap:.22em; flex-wrap:wrap}
+.ba-num .from{color:var(--symptom)} .ba-num .arr{color:var(--faint); font-size:.62em} .ba-num .to{color:var(--accent)}
+.ba-num .un{font-family:var(--mono); font-size:.26em; letter-spacing:.04em; color:var(--dim); font-weight:500; align-self:center}
+
+/* --- featured case module --- */
+.feat{display:block; border-top:1px solid var(--line-2); padding:clamp(40px,6vw,68px) 0; color:var(--text)}
+.feat:hover{text-decoration:none}
+.fhead{display:flex; justify-content:space-between; align-items:baseline; gap:16px; flex-wrap:wrap}
+.feat .plat{font-family:var(--mono); font-size:12px; letter-spacing:.13em; text-transform:uppercase; color:var(--dim)}
+.plat b,.mplat b{color:var(--text); font-weight:700; font-size:1.35em; letter-spacing:.02em}
+.feat h3{font-family:var(--display); font-weight:600; font-size:clamp(27px,4vw,42px); letter-spacing:-.02em; line-height:1.03; margin:8px 0 0; color:var(--text); max-width:18ch}
+.feat .lead{color:var(--dim); font-size:16.5px; line-height:1.55; max-width:52ch; margin-top:16px}
+.feat .lead strong{color:var(--text); font-weight:500}
+.feat .more{display:inline-block; margin-top:22px; font-family:var(--mono); font-size:13px; color:var(--accent); text-decoration:none}
+.feat h3 a{color:inherit; text-decoration:none}
+.feat h3 a:hover,.feat .more:hover{color:var(--accent-2)}
+.feat-split{display:grid; grid-template-columns:1fr 1.08fr; gap:clamp(28px,4vw,54px); align-items:center; margin-top:32px}
+.feat-split.media-left .col-b{order:-1}
+.feat-num-row{display:grid; grid-template-columns:auto 1fr; gap:clamp(28px,5vw,60px); align-items:center; margin-top:30px}
+.col-a{min-width:0} .col-b{min-width:0}
+
+/* paired renders (Rust) */
+.renders{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+.renders figure{margin:0}
+.renders img{width:100%; border:1px solid var(--line-2); border-radius:8px}
+.renders .rcap{font-family:var(--mono); font-size:11px; text-align:center; margin-top:7px; color:var(--dim)}
+.renders .rcap.after{color:var(--accent)}
+
+/* a credited-quote hero (Windrose) */
+.quote-hero{border-left:3px solid var(--accent); padding:6px 0 6px 22px; margin-top:6px}
+.quote-hero q{font-family:var(--display); font-weight:500; font-size:clamp(19px,2.3vw,26px); line-height:1.35; color:var(--text); quotes:none}
+.quote-hero q:before,.quote-hero q:after{content:""}
+.quote-hero .src{display:block; margin-top:14px; font-family:var(--mono); font-size:12.5px; color:var(--dim)}
+
+/* --- inline charts (authored from real numbers; no method in shape/axes) --- */
+.chart{width:100%; background:var(--ink-2); border:1px solid var(--line-2); border-radius:12px; padding:20px 22px}
+.chart .clab{display:flex; justify-content:space-between; gap:12px; align-items:baseline; font-family:var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--faint); margin-bottom:16px}
+.chart svg{width:100%; height:auto; display:block; overflow:visible}
+.chart .cnote{margin-top:14px; font-family:var(--mono); font-size:12px; color:var(--dim); line-height:1.5}
+.chart .cnote strong{color:var(--text); font-weight:600}
+.chart text{font-family:var(--mono)}
+.c-symptom{fill:var(--symptom)} .c-accent{fill:var(--accent)} .c-dim{fill:var(--dim)} .c-faint{fill:var(--faint)} .c-text{fill:var(--text)}
+.s-symptom{stroke:var(--symptom)} .s-accent{stroke:var(--accent)} .s-line{stroke:var(--line-3)} .s-faint{stroke:var(--faint)}
+
+/* horizontal magnitude bars inside a chart (Vurhonga / OTT ladder / frame breakdown) */
+.hbars{display:flex; flex-direction:column; gap:12px}
+.hbar{display:grid; grid-template-columns:88px 1fr auto; gap:14px; align-items:center}
+.hbar .hk{font-family:var(--mono); font-size:11.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--faint)}
+.hbar .htrack{display:block; height:16px; background:var(--ink-3); border-radius:8px; overflow:hidden}
+.hbar .hfill{display:block; height:100%; border-radius:8px}
+.hbar .hfill.sym{background:var(--symptom); opacity:.72} .hbar .hfill.fix{background:var(--accent)} .hbar .hfill.neu{background:var(--ink-4)}
+.hbar .hv{font-family:var(--mono); font-weight:600; font-size:14px; text-align:right; min-width:74px}
+.hbar .hv.sym{color:var(--symptom)} .hbar .hv.fix{color:var(--accent)} .hbar .hv.neu{color:var(--dim)}
+
+/* single stacked frame bar (GW2) */
+.stackbar{height:34px; display:flex; border-radius:8px; overflow:hidden; border:1px solid var(--line-2)}
+.stackbar span{display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:11px; color:var(--ink); white-space:nowrap; overflow:hidden}
+.stackbar .seg-sym{background:var(--symptom)} .stackbar .seg-a{background:var(--accent); opacity:.85} .stackbar .seg-n{background:var(--ink-4); color:var(--dim)}
+.stack-legend{display:flex; gap:18px; flex-wrap:wrap; margin-top:14px; font-family:var(--mono); font-size:12px; color:var(--dim)}
+.stack-legend i{display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:7px; vertical-align:middle}
+
+/* needle-in-haystack (haggis) */
+.needle{height:22px; border-radius:6px; background:var(--ink-3); position:relative; overflow:hidden}
+.needle i{position:absolute; top:0; bottom:0; left:0; width:.9%; background:var(--accent); box-shadow:0 0 12px var(--accent)}
+
+/* --- hero-scale artifact placeholder (awe, method-free) --- */
+.hero-slot{margin-top:14px; border:1px dashed var(--line-3); border-radius:14px; background:
+  repeating-linear-gradient(-45deg, rgba(255,255,255,.012) 0 14px, transparent 14px 28px), var(--ink-2);
+  min-height:clamp(200px,34vw,400px); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; text-align:center; padding:30px}
+.hero-slot .icn{width:48px; height:48px; border-radius:50%; border:1px solid var(--line-3); display:flex; align-items:center; justify-content:center; color:var(--accent); font-size:18px}
+.hero-slot .t{font-family:var(--mono); font-size:13px; color:var(--dim); letter-spacing:.03em}
+.hero-slot .s{font-family:var(--mono); font-size:12px; color:var(--faint); max-width:60ch; line-height:1.55}
+
+/* --- secondary compact grid --- */
+.work-grid{margin-top:34px; display:grid; grid-template-columns:1fr 1fr; align-items:stretch;
+  gap:1px; background:var(--line); border:1px solid var(--line); border-radius:12px; overflow:hidden}
+.mcase{background:var(--ink-2); padding:30px 30px 28px; display:flex; flex-direction:column; gap:14px; color:var(--text)}
+.mcase .mtop{display:flex; justify-content:space-between; align-items:flex-start; gap:14px}
+.mcase .mplat{font-family:var(--mono); font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--dim)}
+.mcase h4{font-family:var(--display); font-weight:600; font-size:21px; letter-spacing:-.01em; margin-top:6px; line-height:1.1}
+.mcase h4 a{color:inherit; text-decoration:none}
+.mcase h4 a:hover,.mcase .mmore:hover{color:var(--accent-2)}
+.mcase .msym{font-size:14.5px; color:var(--dim); line-height:1.5}
+.mcase .mfig{margin-top:auto; padding-top:6px}
+.mcase .mmore{display:inline-block; font-family:var(--mono); font-size:12.5px; color:var(--accent); margin-top:4px; text-decoration:none}
+
+/* --- tertiary slim rows --- */
+.slim{display:grid; grid-template-columns:200px 1fr auto; gap:24px; align-items:center;
+  border-top:1px solid var(--line); padding:26px 4px; color:var(--text)}
+.slim:last-of-type{border-bottom:1px solid var(--line)}
+.slim .sfig{font-family:var(--display); font-weight:600; font-size:clamp(16px,1.8vw,20px); letter-spacing:-.01em; color:var(--dim)}
+.slim .sfig .ok{color:var(--accent)} .slim .sfig .no{color:var(--symptom)}
+.slim .sbody .sh{font-family:var(--display); font-weight:600; font-size:19px; letter-spacing:-.01em}
+.slim .sbody .sh a{color:inherit; text-decoration:none}
+.slim .sbody .sd{font-size:14px; color:var(--dim); margin-top:3px; max-width:64ch}
+.slim .sgo{display:inline-block; font-family:var(--mono); font-size:12.5px; color:var(--accent); white-space:nowrap; text-decoration:none}
+.slim .sh a:hover,.slim .sgo:hover{color:var(--accent-2)}
+
+/* --- responsive: home v2 --- */
+@media (max-width:820px){
+  .feat-split,.feat-num-row{grid-template-columns:1fr; gap:26px}
+  .feat-split.media-left .col-b{order:0}
+  .work-grid{grid-template-columns:1fr}
+}
+@media (max-width:620px){
+  .proofbar{grid-template-columns:1fr}
+  .slim{grid-template-columns:1fr; gap:8px}
+  .slim .sgo{margin-top:6px}
+  .hbar{grid-template-columns:64px 1fr auto; gap:10px}
+}
+
+/* ============================================================
+   PRISM SYNTAX HIGHLIGHTING — no external theme; token colours
+   mapped to the site palette. The .prose pre box (padding, bg,
+   border, scroll) and .prose pre code (mono font) already style
+   the block; these rules only colour the tokens Prism emits.
+   ============================================================ */
+code[class*="language-"], pre[class*="language-"]{ color:#C9D3DC; text-shadow:none; tab-size:4 }
+.token.comment,.token.prolog,.token.doctype,.token.cdata{ color:var(--faint); font-style:italic }
+.token.punctuation{ color:var(--dim) }
+.token.operator{ color:var(--dim) }
+.token.keyword,.token.important,.token.atrule,.token.decorator,.token.tag{ color:var(--accent) }
+.token.boolean,.token.number,.token.constant{ color:var(--data) }
+.token.string,.token.char,.token.template-string,.token.attr-value,.token.regex{ color:var(--symptom) }
+.token.function,.token.class-name,.token.method{ color:var(--accent-2) }
+.token.builtin,.token.property,.token.variable,.token.parameter{ color:#C9D3DC }
+.token.deleted{ color:var(--symptom) } .token.inserted{ color:var(--accent) }
+
+/* ============================================================
+   INTERACTIVE FLOATING-POINT DEMO (Rust article)
+   Shows the exact input code and its live, in-browser output.
+   ============================================================ */
+.fp-demo{max-width:820px; margin:30px auto; border:1px solid var(--line-2); border-radius:12px;
+  background:var(--ink-2); overflow:hidden}
+.fp-head{display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;
+  padding:16px 20px; border-bottom:1px solid var(--line-2); background:var(--ink)}
+.fp-head .fp-title{font-family:var(--mono); font-size:12.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--accent)}
+.fp-run{font-family:var(--mono); font-size:13px; font-weight:600; color:var(--ink); background:var(--accent);
+  border:0; border-radius:7px; padding:8px 16px; cursor:pointer; white-space:nowrap; transition:background .15s, transform .05s}
+.fp-run:hover{background:var(--accent-2)} .fp-run:active{transform:translateY(1px)}
+.fp-intro{font-size:14.5px; color:var(--dim); line-height:1.55; margin:0; padding:16px 20px 4px}
+.fp-head .fp-head-l{display:flex; flex-direction:column; gap:3px}
+.fp-hint{font-family:var(--mono); font-size:11.5px; color:var(--faint); line-height:1.4; margin:0; text-transform:none; letter-spacing:0}
+.fp-case{padding:14px 20px 18px}
+.fp-tag{font-family:var(--mono); font-size:12px; letter-spacing:.1em; text-transform:uppercase;
+  font-weight:600; color:var(--text); margin-bottom:12px; padding-left:11px; border-left:2px solid var(--accent)}
+/* the live "annotated run": each line IS the code — the expression, its live value, and what it does */
+.fp-out{font-family:var(--mono); font-size:13px; background:var(--ink);
+  border:1px solid var(--line-2); border-radius:9px; padding:15px 16px; overflow-anchor:none}
+.fp-out .trace{display:block; white-space:pre; overflow-x:auto; line-height:1.9}
+.fp-out .expr{color:#C9D3DC}
+.fp-out .eq{color:var(--faint)}
+.fp-out .val{color:var(--text); font-weight:600; border-radius:3px}
+.fp-out .pending{color:var(--faint); font-weight:400}
+.fp-out .cmt{color:var(--faint); font-style:italic}
+.fp-out mark{background:none; color:var(--symptom); font-weight:700}   /* the digits that diverge */
+.fp-out .verdict{margin-top:11px; padding-top:11px; border-top:1px dashed var(--line-2);
+  color:var(--accent); line-height:1.5}
+.fp-out .verdict b{color:var(--symptom)}
+.fp-out .verdict.pending{color:var(--faint)}
+.fp-foot{font-size:14px; color:var(--dim); line-height:1.6; margin:0; padding:6px 20px 20px}
+.fp-foot strong{color:var(--text); font-weight:600}
+@media (max-width:620px){ .fp-out{font-size:12px} }

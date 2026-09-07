@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The controller that crashed the game: a 100%-reproducible crash, two layers deep · Sébastien Vercammen</title>
+<meta name="description" content="Plug in a DualShock 4 and theHunter: Call of the Wild crashed to desktop three seconds after launch, every time. The obvious fix uncovered a second crash. I found the root cause and eliminated both, audio intact.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;450;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/site.css">
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap bar">
+    <div class="id"><a href="../index.html">Sébastien Vercammen</a> <span>/ root-cause engineering</span></div>
+    <nav class="top">
+      <a href="../index.html#work">Work</a>
+      <a href="../index.html#approach">Approach</a>
+      <a href="../index.html#engage">Engage</a>
+      <a href="../index.html#contact">Contact</a>
+    </nav>
+    <div class="status"><span class="led" aria-hidden="true"></span>Open to select engagements</div>
+  </div>
+</header>
+
+<article>
+<div class="article-head">
+  <div class="wrap narrow">
+    <p class="kicker"><span>Reverse-engineering</span> · <span>theHunter: Call of the Wild</span></p>
+    <h1>The controller that crashed the game</h1>
+    <p class="dek">Plug in a DualShock 4 and the game crashed to desktop about three seconds after launch, every time. The obvious fix cleared that crash and uncovered a second one, deeper in. I fixed the root cause and eliminated both, audio intact.</p>
+    <div class="article-meta">
+      <span><b>Studio</b> Expansive Worlds / Avalanche</span>
+      <span><b>Engine</b> Apex · D3D11</span>
+      <span><b>Access</b> shipped binary, no source</span>
+      <span><b>Outcome</b> both crashes fixed · studio-acknowledged</span>
+    </div>
+  </div>
+</div>
+
+<div class="prose">
+  <div class="ba-num" style="font-size:clamp(34px,4.6vw,52px)"><span class="from">100%</span><span class="arr">→</span><span class="to">0%</span><span class="un">crash rate · audio intact</span></div>
+
+  <p>On some players' machines, theHunter: Call of the Wild crashed to desktop a few seconds after launch; on others it ran fine. The variable was a single peripheral: a DualShock 4 controller in a USB port. Attach it and the window vanished about three seconds in, straight to desktop, no dialog. Unplug it and the game booted normally.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Input</th><th>Launch result</th><th>Rate</th></tr></thead>
+    <tbody>
+      <tr><td>DualShock 4 attached</td><td class="bad">Crash to desktop, ~3 s in ✗</td><td class="bad">100%</td></tr>
+      <tr><td>No controller</td><td class="ok">Boots to menu ✓</td><td class="ok">0%</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>One binary input, one deterministic outcome, on a fixed timeline. The controller's presence routes execution down a path the game otherwise never takes, and that path dies.</p>
+
+  <h2>The trace</h2>
+  <p>The failure was a jump to a garbage address, the signature of a virtual call through an object whose function-table pointer was never set. The object belonged to the audio system: the game's FMOD Studio integration. With the controller attached, boot reached that object before its vtable pointer had been written, and the first call through it jumped to whatever happened to be in that memory.</p>
+
+  <pre class="diagram wide"><code>A virtual call through an uninitialized object
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+  audio object (partially constructed)
+    ├─ vtable pointer  ──▶  ??? never written, garbage
+    └─ member data...
+
+  first virtual call:
+      call [vtable + slot]
+            │
+            ▼
+      jump to garbage address  ──▶  crash to desktop
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌</code></pre>
+
+  <p>Three seconds is roughly how long boot takes to reach that first call. Without the controller, the path is never taken and the uninitialized object is never touched.</p>
+
+  <div class="callout withheld">
+    <div class="lbl">Method withheld</div>
+    <p>This write-up shows the symptom, the impact, the diagnostic reasoning, and the proof. It deliberately omits the method: how the faulty object was located, how its state was corrected, the exact trigger and mechanism behind the fix, and any tool internals. The class of the bug (an uninitialized function-table pointer in an audio object) is the transferable part. The coordinates and the mechanics stay mine.</p>
+  </div>
+
+  <h2>The obvious fix was a relocation</h2>
+  <p>Making that first call survive did clear the three-second crash: the controller-attached launch sailed past the old failure point and reached the menu. But about twenty-eight to thirty seconds in, the game crashed again: a second, distinct failure cascading from the same half-initialized state. The first crash had been masking it.</p>
+
+  <pre class="diagram wide"><code>Two failure points on one launch (controller attached)
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+  Before any fix
+    t=0s     process start
+    t≈3s     first virtual call through audio object  ──▶  CRASH #1
+
+  After the naive "make the first call survive" fix
+    t=0s     process start
+    t≈3s     first call survives  ──▶  boot continues, menu reached
+    t≈28–30s cascading use of the same broken object  ──▶  CRASH #2
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌</code></pre>
+
+  <p>A fix that creates a new failure isn't a fix; it's a relocation: a crash you can see traded for one you can't, moved into the menu where it looks like a different bug.</p>
+
+  <h2>Both crashes, gone</h2>
+  <p>The target was the object's state, not the call site. Once the audio object was in the condition it was always meant to be in before anything called through it, both failure points disappeared at once, and sound still worked. Neutering the audio path would have traded a crash for silence; the bar was both crashes gone and audio fully intact.</p>
+
+  <div class="result-banner">
+    <div class="stat"><div class="k">Naive fix</div><div class="v sym">Crash relocated</div><div class="sub">First crash cleared at ~3 s · a second surfaced at ~28–30 s</div></div>
+    <div class="stat"><div class="k">Root-cause fix</div><div class="v fix">Both eliminated</div><div class="sub">Object state corrected · audio fully intact</div></div>
+  </div>
+
+  <div class="media-slot">
+    <div class="icn">▶</div>
+    <div class="t">Video slot: before / after, side by side</div>
+    <div class="s">A 20–30 s split clip. Left: DualShock 4 plugged in, launch, crash to desktop ~3 s in. Right: the same launch with the fix applied, booting straight to the menu with audio working, no crash.</div>
+  </div>
+
+  <h2>Acknowledgment</h2>
+  <p>I passed the findings to the studio through a contact there, a private exchange rather than a public patch note. The contact (COTW_Vivi) wrote back that they had "relayed your message to our QA and it helped them reproduce the issue… my sincerest gratitude." A report that lets a studio's own QA reproduce the failure is the outcome that matters: the description of <em>what</em> was wrong was precise enough to act on.</p>
+
+  <h2>The pattern</h2>
+  <p>Two things generalise. A half-constructed object with an uninitialized pointer looks fine until a specific input (here, one controller being present) routes the first call through the empty slot and it jumps to garbage; the tell is a crash address that was never a function. And a fix that creates a new failure isn't done: fix the <em>state</em> that produced the symptom, then verify the whole flow past the original crash, not just the one you can see.</p>
+</div>
+
+<div class="wrap narrow">
+  <div class="article-foot">
+    <div class="row">
+      <a class="btn" href="../index.html#work">← All work</a>
+      <a class="btn primary" href="../index.html#contact">Have a crash like this? →</a>
+    </div>
+    <div class="next-list">
+      <a class="case" href="the-ghost-species.html"><div class="platform">theHunter · reverse-engineering</div><h3 style="font-size:19px">The ghost species</h3></a>
+      <a class="case" href="one-savanna-tanked-the-framerate.html"><div class="platform">theHunter · diagnostic</div><h3 style="font-size:19px">One savanna tanked the framerate</h3></a>
+    </div>
+  </div>
+</div>
+</article>
+
+<footer class="site">
+  <div class="wrap">
+    <span>Sébastien Vercammen · Belgium · remote</span>
+    <span>Root-cause engineering</span>
+  </div>
+</footer>
+
+<script src="../assets/vendor/prism.min.js"></script>
+<script src="../assets/js/site.js"></script>
+<!-- disabled 07/09: feedback widget. <script src="../assets/js/feedback.js"></script> -->
+</body>
+</html>

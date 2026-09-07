@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Virtual shadow maps for a 14-year-old engine: build log · Sébastien Vercammen</title>
+<meta name="description" content="Bringing a modern virtual-shadow-map-style path to Guild Wars 2's ~14-year-old DirectX 11 engine, from the outside, no source. Proven so far: the engine draws correct shadows from a source I supply, user-verified across every compose mode. In progress, crash-fighting.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;450;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/site.css">
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap bar">
+    <div class="id"><a href="../index.html">Sébastien Vercammen</a> <span>/ root-cause engineering</span></div>
+    <nav class="top">
+      <a href="../index.html#work">Work</a>
+      <a href="../index.html#approach">Approach</a>
+      <a href="../index.html#engage">Engage</a>
+      <a href="../index.html#contact">Contact</a>
+    </nav>
+    <div class="status"><span class="led" aria-hidden="true"></span>Open to select engagements</div>
+  </div>
+</header>
+
+<article>
+<div class="article-head">
+  <div class="wrap narrow">
+    <p class="kicker"><span>Reverse-engineering</span> · <span>Guild Wars 2</span> · <span>in progress</span></p>
+    <h1>Virtual shadow maps for a 14-year-old engine</h1>
+    <p class="dek">A modern shadow path, virtual-shadow-map style, grafted onto a 14-year-old DirectX 11 engine, built years before the technique existed. From the outside, no source. A live build log: one milestone proven, the rest open.</p>
+    <div class="article-meta">
+      <span><b>Studio</b> ArenaNet · no relationship</span>
+      <span><b>Engine</b> Guild Wars 2 · D3D11 · ~14 years old</span>
+      <span><b>Access</b> shipped binary, no source</span>
+      <span><b>Status</b> in progress · crash-fighting</span>
+    </div>
+  </div>
+</div>
+
+<div class="wrap narrow">
+  <div class="result-banner" data-reveal>
+    <div class="stat"><div class="k">Milestone</div><div class="v fix">engine draws <span style="color:var(--dim);font-size:.6em">externally-supplied</span> shadows</div><div class="sub">User-verified across all compose modes</div></div>
+    <div class="stat"><div class="k">Status</div><div class="v sym">in progress</div><div class="sub">Crash-fighting · not shipped · not benchmarked</div></div>
+  </div>
+</div>
+
+<div class="prose">
+  <p>The <a href="what-a-frame-costs.html">frame-cost diagnostic</a> ended on a number: Guild Wars 2's ~14-year-old DirectX 11 engine spends about 4 ms per frame on shadows and recomputes about 76% of that redundantly, on a technique that predates the modern lineage of shadow methods. This is the response: take a modern virtual-shadow-map-style path and bring it to an engine that shipped long before such techniques existed, from the outside, without the source. Published mid-build, on purpose: one hard result, and a pile of open problems behind it.</p>
+
+  <h2>The goal</h2>
+  <p>Writing a shadow renderer is the easy part. The hard problem is to make a closed engine, one never designed to accept anything from outside, use a shadow result computed entirely by my code as if it were its own.</p>
+
+  <h2>Proven</h2>
+  <p>The engine now draws correct shadows from a source I supply. Its native shadow map is replaced by one my code produces, and the engine samples that instead. A user checked the visual result across every one of the engine's shadow compose modes and confirmed it correct in all of them.</p>
+
+  <div class="media-slot">
+    <div class="icn">▶</div>
+    <div class="t">Video slot: native vs. externally-supplied shadows, orbiting camera</div>
+    <div class="s">Before/after of the engine's own shadows against the ones my code supplies, under an orbiting camera. Motion is what a still can't show: the externally-supplied shadows are flicker-free and stable while the camera rotates, not just correct in one frozen frame. (Still needs relabeling and cropping before publish.)</div>
+  </div>
+
+  <div class="media-slot">
+    <div class="icn">◱</div>
+    <div class="t">Image slot: the shadow path's layered sub-steps</div>
+    <div class="s">A multi-panel view of the technique's layered stages, each panel a sub-step of how the supplied shadow result is built up. Panels relabeled to generic terms before publishing: the structure is shown, the specifics stay out.</div>
+  </div>
+
+  <h2>Status</h2>
+  <p>A build log, unretouched. Three things true at once.</p>
+
+  <p><strong>It crashes.</strong> The integration produces correct output when it runs; keeping it running reliably is the live front. Today's problem is stability, not correctness of the image.</p>
+
+  <p><strong>Nothing is measured.</strong> No performance number exists: you can't benchmark what isn't stable. When there's a measured number, there'll be a measured number.</p>
+
+  <p><strong>Nothing is shipped.</strong> No studio relationship, no credit. Independent R&D, self-attested, mid-flight.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Claim</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>Engine samples an externally-supplied shadow map</td><td class="ok">Proven ✓</td></tr>
+      <tr><td>Visual result correct across all compose modes</td><td class="ok">User-verified ✓</td></tr>
+      <tr><td>Stable under a moving camera</td><td>To be shown on video ⋯</td></tr>
+      <tr><td>Runs reliably without crashing</td><td class="bad">Not yet, crash-fighting ✗</td></tr>
+      <tr><td>Faster than the native path</td><td class="bad">Unmeasured, no number exists ✗</td></tr>
+      <tr><td>Shipped / credited</td><td class="bad">No, independent R&D ✗</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="callout withheld">
+    <div class="lbl">Method withheld</div>
+    <p>This log shows <em>what</em> was achieved and <em>what</em> remains, never <em>how</em>. It does not describe how an external shadow result is handed to the engine, how the engine is made to sample it instead of its own, which resource is substituted, or any of the hooking, interop, or addressing that makes the substitution possible. That mechanism is the commercial core; it stays private. The milestone is the proof; the method is not the write-up.</p>
+  </div>
+
+  <h2>The transferable claim</h2>
+  <p>Not "shipped a shadow feature". The capability the milestone demonstrates is getting a closed, ancient, source-less engine to accept a result computed entirely outside it and render with it correctly. That's the hard black-box problem, proven independently of whether the rest lands. When there's a stable build or a measured number, this log gets the update.</p>
+</div>
+
+<div class="wrap narrow">
+  <div class="article-foot">
+    <div class="row">
+      <a class="btn" href="../index.html#work">← All work</a>
+      <a class="btn primary" href="../index.html#contact">Need a black box understood? →</a>
+    </div>
+    <div class="next-list">
+      <a class="case" href="what-a-frame-costs.html"><div class="platform">Guild Wars 2 · diagnostic</div><h3 style="font-size:19px">What a frame costs</h3></a>
+      <a class="case" href="the-ghost-species.html"><div class="platform">theHunter · reverse-engineering</div><h3 style="font-size:19px">The ghost species</h3></a>
+    </div>
+  </div>
+</div>
+</article>
+
+<footer class="site">
+  <div class="wrap">
+    <span>Sébastien Vercammen · Belgium · remote</span>
+    <span>Root-cause engineering</span>
+  </div>
+</footer>
+
+<script src="../assets/vendor/prism.min.js"></script>
+<script src="../assets/js/site.js"></script>
+<!-- disabled 07/09: feedback widget. <script src="../assets/js/feedback.js"></script> -->
+</body>
+</html>

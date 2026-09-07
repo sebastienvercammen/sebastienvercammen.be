@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The optimization that wasn't: proving a physics win didn't exist before building it · Sébastien Vercammen</title>
+<meta name="description" content="An obviously-correct optimization: merge a vehicle's per-block collision shapes into one and win frame rate. I reverse-engineered the engine before building it. The win didn't exist: the engine already does this. A null result, published on purpose.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;450;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/site.css">
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap bar">
+    <div class="id"><a href="../index.html">Sébastien Vercammen</a> <span>/ root-cause engineering</span></div>
+    <nav class="top">
+      <a href="../index.html#work">Work</a>
+      <a href="../index.html#approach">Approach</a>
+      <a href="../index.html#engage">Engage</a>
+      <a href="../index.html#contact">Contact</a>
+    </nav>
+    <div class="status"><span class="led" aria-hidden="true"></span>Open to select engagements</div>
+  </div>
+</header>
+
+<article>
+<div class="article-head">
+  <div class="wrap narrow">
+    <p class="kicker"><span>Reverse-engineering</span> · <span>Stormworks: Build and Rescue</span></p>
+    <h1>The optimization that wasn't</h1>
+    <p class="dek">An obviously-correct optimization: players build vehicles from many small blocks, so merge each vehicle's per-block collision shapes into one and win frame rate. Before building it, I reverse-engineered how the engine handles collision. The win didn't exist: the engine already does this.</p>
+    <div class="article-meta">
+      <span><b>Game</b> Stormworks: Build and Rescue</span>
+      <span><b>Engine</b> native · embedded physics library</span>
+      <span><b>Access</b> shipped binary, no source</span>
+      <span><b>Outcome</b> null result · bad optimization killed before build</span>
+    </div>
+  </div>
+</div>
+
+<div class="wrap narrow">
+  <div class="result-banner" data-reveal>
+    <div class="stat"><div class="k">Expected win</div><div class="v">large</div><div class="sub">The intuition: many blocks → many shapes → merge them</div></div>
+    <div class="stat"><div class="k">Actual win</div><div class="v">none</div><div class="sub">Already done: the engine consolidates per body itself</div></div>
+  </div>
+</div>
+
+<div class="prose">
+  <p>Stormworks players assemble vehicles out of many small blocks, hundreds or thousands for a large build, each a discrete piece with its own collision shape, all simulated on a native physics engine.</p>
+
+  <p>The optimization sounds obviously correct: a thousand-block ship is a thousand collision shapes for the engine to handle every tick, so merge them into one combined shape and hand the engine a single object. Fewer shapes, less broad-phase work.</p>
+
+  <h2>Why check before building</h2>
+  <p>Merging collision geometry is a month of real work, validated against the game's own physics. That cost is the reason to check first: an optimization is only worth building if the thing it optimizes actually costs what you assume. So before writing any of it, one narrow question: does the engine really carry one collision shape per block into the physics step? The engine is a shipped binary with no source, so I reverse-engineered how it builds and registers collision for a completed body.</p>
+
+  <h2>The finding</h2>
+  <p>The engine already does the merge. When a body is built, it constructs a single compound collision shape for the whole body and registers one broad-phase proxy, one per body, not one per block. The broad phase the optimization was meant to relieve already sees one proxy, not a thousand.</p>
+
+  <pre class="diagram"><code>The assumed model: what the optimization was built to fix
+  block ──▶ shape ──▶ proxy ╮
+  block ──▶ shape ──▶ proxy ├─▶ broad phase sees N proxies
+  block ──▶ shape ──▶ proxy ├─▶ "merge them into one!"
+  block ──▶ shape ──▶ proxy ╯
+
+The actual model: what the engine already does
+  block ─╮
+  block ─┤
+  block ─┼─▶ one compound shape ──▶ one broad-phase proxy per body
+  block ─┤
+  block ─╯    nothing left to merge</code></pre>
+
+  <p>There was nothing to merge. The optimization would have reimplemented, at real cost, a consolidation the engine already performs internally. Best case it changes nothing; it cannot beat "already done."</p>
+
+  <div class="callout withheld">
+    <div class="lbl">Method withheld</div>
+    <p>This write-up states the conclusion about the engine (one compound shape and one broad-phase proxy per body) because the conclusion is the result. It omits how that was determined: the reverse-engineering technique, the way the engine's collision handling was inspected, any addresses, offsets, or RTTI, and the tooling.</p>
+  </div>
+
+  <h2>Why this is published</h2>
+  <p>The optimization was killed before a line of it was written, at the cost of a focused look at one question. Building the merge and <em>then</em> discovering it did nothing would have cost a month, plus the ongoing weight of maintaining a system that duplicates the engine. The output isn't a shipped fix; it's a decision not to build, backed by evidence rather than a guess.</p>
+
+  <div class="callout note">
+    <div class="lbl">The pattern</div>
+    <p>Verify the bottleneck exists before you optimize it. Sometimes the most valuable optimization is the one you prove you don't need to build. A null result is only worthless if you keep it to yourself; shared, it's the same discipline as a shipped fix, pointed at work that shouldn't happen.</p>
+  </div>
+</div>
+
+<div class="wrap narrow">
+  <div class="article-foot">
+    <div class="row">
+      <a class="btn" href="../index.html#work">← All work</a>
+      <a class="btn primary" href="../index.html#contact">Need to know if it's worth building? →</a>
+    </div>
+    <div class="next-list">
+      <a class="case" href="the-tick-that-collapsed.html"><div class="platform">Reverse-engineering · physics</div><h3 style="font-size:19px">The tick that collapsed</h3></a>
+      <!-- disabled 26/08: <a class="case" href="what-a-frame-costs.html"><div class="platform">Guild Wars 2 · diagnostic</div><h3 style="font-size:19px">What a frame costs</h3></a> -->
+    </div>
+  </div>
+</div>
+</article>
+
+<footer class="site">
+  <div class="wrap">
+    <span>Sébastien Vercammen · Belgium · remote</span>
+    <span>Root-cause engineering</span>
+  </div>
+</footer>
+
+<script src="../assets/vendor/prism.min.js"></script>
+<script src="../assets/js/site.js"></script>
+<!-- disabled 07/09: feedback widget. <script src="../assets/js/feedback.js"></script> -->
+</body>
+</html>

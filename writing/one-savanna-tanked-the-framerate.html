@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Why one savanna tanked the frame rate: turning "it's laggy" into a measured number · Sébastien Vercammen</title>
+<meta name="description" content="One map had a community reputation for lag. Measured against a comparable map it really was ~42% slower. Two LOD tiers of a single grass mesh were 92% of the GPU cost. A reversible cap recovered up to +79%.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;450;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/site.css">
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap bar">
+    <div class="id"><a href="../index.html">Sébastien Vercammen</a> <span>/ root-cause engineering</span></div>
+    <nav class="top">
+      <a href="../index.html#work">Work</a>
+      <a href="../index.html#approach">Approach</a>
+      <a href="../index.html#engage">Engage</a>
+      <a href="../index.html#contact">Contact</a>
+    </nav>
+    <div class="status"><span class="led" aria-hidden="true"></span>Open to select engagements</div>
+  </div>
+</header>
+
+<article>
+<div class="article-head">
+  <div class="wrap narrow">
+    <p class="kicker"><span>Reverse-engineering</span> · <span>theHunter: Call of the Wild</span></p>
+    <h1>Why one savanna tanked the frame rate</h1>
+    <p class="dek">A map with a community reputation for lag really was ~42% slower than a comparable reserve. The cost concentrated in two level-of-detail tiers of a single grass mesh, 92% of the GPU bottleneck. A reversible cap recovered up to +79%, no gameplay change.</p>
+    <div class="article-meta">
+      <span><b>Studio</b> Expansive Worlds / Avalanche</span>
+      <span><b>Engine</b> Apex · D3D11</span>
+      <span><b>Access</b> shipped binary, no source</span>
+      <span><b>Outcome</b> disclosed · studio-acknowledged</span>
+    </div>
+  </div>
+</div>
+
+<div class="prose">
+  <p>Vurhonga Savanna had a community reputation for lag: the frame rate felt worse there than on other reserves, often enough to be folklore. Folklore isn't a bug report. Before any fix, the claim had to become a number.</p>
+
+  <div class="ba-num"><span class="from">143</span><span class="arr">→</span><span class="to" data-reveal data-count="256" data-from="143">256</span><span class="un">fps · +79% on the before/after gauge · gap vs a comparable map 42% → 5%</span></div>
+
+  <h2>The measurement</h2>
+  <p>A frame rate in isolation says nothing. Slow compared to what? To measure a <em>deficit</em> you need a control. I captured a matched baseline against Emerald Coast, a comparable forested reserve, under identical conditions.</p>
+
+  <pre class="diagram"><code>Clean baseline, matched capture
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+  Emerald Coast (control)   268 fps
+  Vurhonga Savanna          143 fps   ← ~42% slower
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+  The community wasn't imagining it. The savanna really
+  was running at roughly 42% of the frame rate a
+  comparable map delivered on the same machine.</code></pre>
+
+  <p>The folklore was correct. The only question left: where does the difference go?</p>
+
+  <h2>Where the cost was</h2>
+  <p>Attributing the frame's GPU cost stage by stage, the disparity did not spread across dozens of systems; it collapsed onto one. Two level-of-detail tiers of a <em>single</em> grass mesh were 92% of the GPU bottleneck. The cause was raw quantity: the savanna drew roughly seven times the grass the control did.</p>
+
+  <div class="stackbar" style="margin-top:18px" aria-hidden="true">
+    <span class="seg-sym" style="width:92%">grass mesh · 2 LOD tiers 92%</span>
+    <span class="seg-n" style="width:8%">other 8%</span>
+  </div>
+
+  <pre class="diagram wide"><code>Vegetation drawn per frame: savanna vs forested control
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+  Grass patches
+    Control (Emerald Coast)   367   ▓▓░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+    Vurhonga Savanna        2,657   ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓   7.2×
+
+  Vegetation vertices per frame
+    Control (Emerald Coast)   7.4M  ▓▓░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+    Vurhonga Savanna         51.1M  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░   6.9×
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+  One map was pushing seven times the grass geometry
+  through the GPU, every single frame.</code></pre>
+
+  <p>Not a mysterious engine problem. The savanna's authoring placed far more grass than a comparable map, and a single mesh, drawn at two LOD tiers, carried almost all of the extra cost.</p>
+
+  <h2>Isolating the cost</h2>
+  <p>A correlation is a hypothesis until you can switch the suspected cost off and watch the frame rate move by the predicted amount. Measured from the same 143 fps baseline on Vurhonga, each step fully reversible and with no change to what the player can do:</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Intervention</th><th>Frame rate</th><th>Change from baseline</th></tr></thead>
+    <tbody>
+      <tr><td>Baseline (Vurhonga, untouched)</td><td>143 fps</td><td>reference</td></tr>
+      <tr><td>Native vegetation off</td><td class="ok">228 fps</td><td class="ok">+60%</td></tr>
+      <tr><td>Grass fully off</td><td class="ok">215 fps</td><td class="ok">+50%</td></tr>
+      <tr><td>Level-of-detail cap on the grass</td><td class="ok">256 fps</td><td class="ok">+79%</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Grass off entirely bought +50%, a diagnostic probe rather than a fix. The last row is the result: a cap on how much grass actually draws recovered +79%, more than switching it off, while leaving the grass visibly present. With the cap in place, the 42% deficit against the control fell to roughly 5%.</p>
+
+  <div class="callout note">
+    <div class="lbl">Honest baseline caveat</div>
+    <p>The clean Vurhonga baseline drifted between roughly 143 and 175 fps across test phases, because the measurement instrumentation itself carries overhead that varied with how much was hooked. So the headline is a range, <strong>recovered up to +79%, closing a ~42% deficit to about 5%</strong>, rather than a single fixed number. The 143 → 256 fps figures are the matched before/after pair from one gauge, used only for that comparison, not as a claim about every machine.</p>
+  </div>
+
+  <div class="media-slot">
+    <div class="icn">▶</div>
+    <div class="t">Video slot: split-screen, on-screen FPS counter</div>
+    <div class="s">Open savanna, same viewpoint and time of day: left stock, right with the grass cap, both with a live FPS counter, then a pan out showing the grass looks unchanged at distance.</div>
+  </div>
+
+  <div class="media-slot">
+    <div class="icn">◱</div>
+    <div class="t">Video slot: Vurhonga vs control, side by side</div>
+    <div class="s">The savanna against the forested control, both with FPS counters, making the ~42% deficit concrete: the raw gap the fix was measured against.</div>
+  </div>
+
+  <div class="callout withheld">
+    <div class="lbl">Method withheld</div>
+    <p>Shown: the symptom, the measured deficit, the attribution, and the before/after numbers. Omitted: which mesh, how the cost was attributed inside the frame, where the draw path lives, and the mechanism of the cap. What is shown is <em>what</em> was capped and <em>how much</em> it cost, but not how it was located or capped. The result is the proof; it isn't a recipe.</p>
+  </div>
+
+  <h2>Disclosure</h2>
+  <p>The findings went to the studio through the same private channel as my other work on this title, and their QA engaged with them. Presented as a private acknowledgment rather than a shipped fix: the value here is the diagnosis and the measured recovery, not authorship of a released change.</p>
+
+  <h2>The pattern</h2>
+  <p>Three things transfer out of this, none specific to grass or to this engine.</p>
+  <p><strong>A reputation for "lag" is a measurable claim, not a mood.</strong> Refusing to treat "this map feels slow" as true or false, and measuring it against a control until it became "42% slower," was the single most useful move.</p>
+  <p><strong>The cost usually concentrates.</strong> Performance problems feel diffuse, but attribute a frame honestly and the damage collapses onto one asset drawn far too many times: here, two LOD tiers of one mesh at 92% of the bottleneck.</p>
+  <p><strong>The best fix changes the frame budget, not the game.</strong> The cap that recovered the most did so by removing geometry the player was never going to perceive. The game is unchanged and the budget is real.</p>
+</div>
+
+<div class="wrap narrow">
+  <div class="article-foot">
+    <div class="row">
+      <a class="btn" href="../index.html#work">← All work</a>
+      <a class="btn primary" href="../index.html#contact">Have a perf problem like this? →</a>
+    </div>
+    <div class="next-list">
+      <a class="case" href="the-controller-that-crashed-the-game.html"><div class="platform">theHunter · same engine</div><h3 style="font-size:19px">The controller that crashed the game</h3></a>
+      <a class="case" href="the-ghost-species.html"><div class="platform">theHunter · reverse-engineering</div><h3 style="font-size:19px">The ghost species</h3></a>
+    </div>
+  </div>
+</div>
+</article>
+
+<footer class="site">
+  <div class="wrap">
+    <span>Sébastien Vercammen · Belgium · remote</span>
+    <span>Root-cause engineering</span>
+  </div>
+</footer>
+
+<script src="../assets/vendor/prism.min.js"></script>
+<script src="../assets/js/site.js"></script>
+<!-- disabled 07/09: feedback widget. <script src="../assets/js/feedback.js"></script> -->
+</body>
+</html>

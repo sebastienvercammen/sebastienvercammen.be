@@ -1,0 +1,792 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Root-cause analysis on your shipped build, for game studios · Sébastien Vercammen</title>
+<meta name="description" content="Something in your shipped game is broken and you want it fixed. I find out why, working from the public build your players downloaded. No source access needed, no engineer's time required to start. One problem, €2,500, a written root-cause report inside two weeks.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://sebastienvercammen.be/for-game-studios.html">
+<meta property="og:title" content="Root-cause analysis on your shipped build, for game studios">
+<meta property="og:description" content="One problem, one fixed price. You get a cause and a number inside two weeks, whichever way it goes. No source access needed, no onboarding required.">
+<meta property="og:image" content="https://sebastienvercammen.be/assets/img/proof-windrose-credit.webp">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;450;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/site.css">
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<style>
+  /* page-scoped only. Nothing here touches the shared design system.
+     Bracket joining the two "no" outcomes to the single shared deliverable.
+     Hidden under 640px, where the two stats stack and the bracket would lie. */
+  .converge{position:relative; max-width:76ch; margin:0 auto; height:26px}
+  .converge::before{content:""; position:absolute; left:25%; right:25%; top:0; height:13px;
+    border:1px solid var(--line-2); border-top:0; border-radius:0 0 10px 10px}
+  .converge::after{content:""; position:absolute; left:calc(50% - .5px); top:13px;
+    width:1px; height:13px; background:var(--line-2)}
+  @media (max-width:640px){ .converge{display:none} }
+
+  /* Two-week timeline, replacing the 4-box matrix. Two rows of two.
+     Day 7 falls *inside* days 3–12, so the rows are grouped by kind (the work, then
+     what you receive) rather than strictly by date. The row labels are what make that
+     legible; without them a reader reads 1–3 → 3–12 → 7 → 14 and sees a broken sequence.
+     Rails and nodes are borders and a 1px gradient: no shadows, no filters, nothing that
+     repaints on scroll. */
+  /* The one word that differs between the two "no" outcomes. Same colour on both:
+     the section's whole argument is that the two cases are equivalent, so tinting
+     "isn't" as a warning would contradict it. Contrast alone carries the juxtaposition. */
+  .tog{color:var(--accent); font-weight:700}
+
+  /* Click-to-zoom for the two evidence screenshots. Plain opacity over a solid backdrop,
+     deliberately no blur and no filter, so it costs nothing to composite on a machine
+     without GPU acceleration, same reason the background grid avoids them. */
+  /* The shared .feat-split centres its two columns against each other, which is right when they
+     are close in height (the Windrose quote beside its screenshot). In the Rust block col-b is far
+     taller than col-a, so centring split the difference into empty space above and below the left
+     column and pushed the big before/after number away from the top of the map renders. Top-align
+     that one block. Scoped to this page: .feat-split is also used by index.html. */
+  .feat-split.top{align-items:start}
+
+  img.zoomable{cursor:zoom-in}
+  #lightbox{position:fixed; inset:0; z-index:200; display:none; align-items:center;
+    justify-content:center; background:rgba(8,11,15,.95); padding:28px; cursor:zoom-out}
+  #lightbox.on{display:flex}
+  #lightbox img{max-width:100%; max-height:100%; border:1px solid var(--line-2); border-radius:10px}
+
+  /* "Is this a fit?" folded into the offer section (01/08). It needs to read as part of the
+     offer, not as a section of its own, so: a rule and generous space to mark the break, and
+     a heading one step below .section-head h2 rather than a new size on the scale. */
+  .fit-in{margin-top:46px; padding-top:34px; border-top:1px solid var(--line)}
+  .fit-in h3{font-family:var(--display); font-weight:600; font-size:clamp(20px,2.4vw,25px);
+    letter-spacing:-.01em}
+
+  /* n2, 01/08: "<20 → >60" is only legible if you already know which side is which. Small mono
+     qualifiers put the sentence back, "before <20 fps → after >60 fps", at a size that reads
+     as annotation rather than competing with the numbers. .lb is the before/after label, .u the
+     unit when it belongs to one side rather than to the whole figure.
+     Page-scoped: .ba-num is shared with work.html and must not change there. */
+  .ba-num .lb{font-family:var(--mono); font-size:.19em; letter-spacing:.11em; text-transform:uppercase;
+    color:var(--faint); font-weight:500; align-self:center}
+  .ba-num .u{font-family:var(--mono); font-size:.23em; letter-spacing:.03em; color:var(--dim);
+    font-weight:500; align-self:center}
+
+  /* The Rust figure sits in a half-width column and its values are long ("~4.6 min", "20.6 s"),
+     so at the shared 64px the before/after labels wrap the result onto its own line. Scale the
+     numerals down, but pin the annotation text to absolute sizes, because .un is .26em and would
+     shrink to 9px and stop being readable. */
+  .ba-num.tight{font-size:clamp(24px,3vw,36px)}
+  .ba-num.tight .lb{font-size:11px}
+  .ba-num.tight .u,.ba-num.tight .un{font-size:13px}
+
+  /* The non-action next to the one action. Deliberately not a link: making it clickable would
+     put it back in competition with the button, which is the thing the second button did wrong. */
+  .keep-reading{font-family:var(--mono); font-size:13px; color:var(--faint); padding-left:4px}
+  .keep-reading span{color:var(--dim); padding-left:2px}
+  @media (max-width:560px){ .keep-reading{padding-left:0} }
+
+  .tl{margin-top:30px; display:grid; gap:38px}
+  .tl-lbl{font-family:var(--mono); font-size:11.5px; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--faint); margin-bottom:18px}
+  .tl-row{display:grid; grid-template-columns:1fr 1fr}
+  .tl-step{position:relative; padding:30px 36px 0 0}
+  .tl-step::before{content:""; position:absolute; left:0; right:0; top:6px; height:1px; background:var(--line-2)}
+  .tl-step:last-child::before{background:linear-gradient(90deg,var(--line-2) 58%,transparent)}
+  .tl-step::after{content:""; position:absolute; left:0; top:1px; width:11px; height:11px; box-sizing:border-box;
+    border-radius:50%; border:1px solid var(--accent); background:var(--ink)}
+  .tl-when{font-family:var(--mono); font-size:12.5px; letter-spacing:.06em; color:var(--accent)}
+  .tl-step h3{font-family:var(--display); font-weight:500; font-size:19px; margin:9px 0 8px}
+  .tl-step p{font-size:14.5px; color:var(--dim)}
+  @media (max-width:760px){
+    .tl-row{grid-template-columns:1fr; row-gap:30px}
+    .tl-step{padding-right:0}
+    .tl-step::before{background:linear-gradient(90deg,var(--line-2) 58%,transparent)}
+  }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap bar">
+    <div class="id"><a href="index.html">Sébastien Vercammen</a> <span>/ root-cause engineering</span></div>
+    <nav class="top">
+      <!-- 01/08: "Proof" → "Past work", and moved ahead of "The offer" so the nav order
+           matches the page order after the proof section was lifted above the offer. -->
+      <a href="#symptoms">Symptoms</a>
+      <a href="#proof">Past work</a>
+      <a href="#offer">The offer</a>
+      <a href="#contact">Contact</a>
+    </nav>
+    <div class="status"><span class="led" aria-hidden="true"></span>Open to new engagements</div>
+  </div>
+</header>
+
+<!-- ============ 1 · WHAT THIS IS ============ -->
+<section class="hero">
+  <div class="wrap">
+    <p class="eyebrow">For game studios · shipped titles · no source access</p>
+    <h1>Something in your shipped build is broken, and you want it fixed.</h1>
+    <p class="lede">I find out why, working from the public build your players downloaded. You don't have to hand over source code, repo access or an engineer's time to get started. <strong>Pick the problem that's costing you most. You get a cause and a number inside two weeks, whichever way it goes.</strong></p>
+
+    <div class="cta-row">
+      <a class="btn primary" href="#offer">What it costs and what you get</a>
+      <a class="btn" href="#proof">See the work first</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 2 · THE SYMPTOM MENU ============ -->
+<section id="symptoms" class="divider-top">
+  <div class="wrap">
+    <div class="section-head"><h2>Does one of these sound like your build?</h2></div>
+    <div class="cap-cols" style="margin-top:30px">
+      <div>
+        <ul class="cap-list">
+          <li><b>Players keep hitting a crash.</b></li>
+          <li><b>The game runs fine, then drops hard in one particular place.</b></li>
+          <li><b>Loading times have crept up over the last few updates.</b></li>
+          <li><b>The longer someone plays, the worse it gets.</b></li>
+          <li><b>An update fixed one thing and something unrelated got worse at the same time.</b></li>
+        </ul>
+      </div>
+      <div>
+        <ul class="cap-list">
+          <li><b>It falls apart on one particular graphics card or driver.</b></li>
+          <li><b>Sound cuts out or the game hitches under load.</b></li>
+          <li><b>The slow part is inside an engine, plugin or middleware you don't have the source for.</b></li>
+          <li><b>The person who wrote the failing system isn't available.</b></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 3 · PROOF BLOCKS ============
+     Moved above the offer on 01/08. It used to start 4,501px down, 40% of the page:
+     seven sections of claims before the first piece of evidence. It now starts at ~10%. -->
+<section id="proof" class="divider-top">
+  <div class="wrap">
+    <div class="section-head"><h2>Past work on closed-source builds</h2><!-- n2, 01/08: was "Work on shipped, closed-source builds". --></div>
+    <p class="section-sub">Each of these was diagnosed from outside the studio, on a retail build, with no source access. The full technical write-up behind each one is available on request.<!-- Was: "Every one links to the full technical write-up (the long version) for your engineers." Restore that wording when the write-ups are published and the links are re-enabled. n1, 01/08: dropped "to your engineers" from the second sentence. --></p>
+
+    <!-- ===== WINDROSE ===== -->
+    <article class="feat">
+      <div class="fhead">
+        <div class="plat"><b><a href="https://store.steampowered.com/app/3041230/Windrose/" target="_blank" rel="noopener">Windrose</a></b> · Kraken Express · Unreal Engine 5 · D3D12</div>
+        <span class="flag">Shipped</span>
+      </div>
+      <h3><!-- link disabled 27/07: <a href="writing/the-startup-crash-in-the-runtime.html"> -->Hard crashes on startup for some<!-- </a> --></h3>
+      <!-- n4, 01/08: was "A slice of players hard-crashed before they ever reached the main menu,
+           while the same build ran fine for most. Root-cause diagnosis surfaced the fault below
+           the game, in a bundled graphics shader component, and pinned down…" -->
+      <p class="lead" style="margin-top:14px; max-width:74ch">A slice of players hard-crashed on startup. Root-cause diagnosis surfaced the fault <strong>in a bundled graphics shader component</strong> (outside of game code), and pinned down which version update fixed it, plus which engine configuration avoids the bug.</p>
+
+      <div class="result-banner" style="margin-top:24px">
+        <div class="stat">
+          <div class="k">What it cost to find out</div>
+          <div class="v" style="font-size:clamp(18px,2vw,22px)">Nothing but the build</div>
+          <div class="sub">No source, no seats, no onboarding.</div>
+        </div>
+        <div class="stat">
+          <div class="k">What they did with it</div>
+          <div class="v fix" style="font-size:clamp(18px,2vw,22px)">Shipped + FAQ</div>
+          <div class="sub">I want to give credit: they responded very fast, and published an FAQ for their users nearly immediately after the report.</div>
+        </div>
+      </div>
+
+      <div class="feat-split media-left" style="margin-top:26px">
+        <div class="col-a">
+          <div class="quote-hero"><q>D3D12Core.dll update … huge kudos to our friend @Seb for figuring this one out! ❤️</q><span class="src">Windrose team, announcing the <a href="https://windrose.support/faq/directx12-crash" target="_blank" rel="noopener">official FAQ entry</a></span></div>
+          <!-- The quote is a staff announcement in the studio's community server, not a line from
+               the FAQ itself: the linked article is Official-authored with no attribution field set,
+               so it carries the fix but not the credit. The attribution says "announcing the FAQ
+               entry" rather than "official FAQ" so the link and the quote describe the same act. -->
+          <!-- link disabled 27/07: <a class="more" href="writing/the-startup-crash-in-the-runtime.html">Read the investigation →</a> -->
+        </div>
+        <div class="col-b">
+          <figure style="margin:0"><img class="zoomable" src="assets/img/proof-windrose-credit.webp" alt="Windrose staff announcement crediting Seb by name for the D3D12Core.dll startup-crash fix" loading="lazy" style="width:100%;border:1px solid var(--line-2);border-radius:10px"><figcaption style="font-family:var(--mono);font-size:12px;color:var(--faint);text-align:center;margin-top:10px">Kraken Express announcing the fix.<!-- n3, 01/08: was "Public credit, by name, from the studio's own team." Before that, "in the studio's own documentation", which was wrong either way: the screenshot is a staff announcement, not the FAQ page. --></figcaption></figure>
+        </div>
+      </div>
+
+      <div class="callout note">
+        <div class="lbl">Similar problem?</div>
+        <p><strong>Crash reports arriving from players? €2,500, report in two weeks.</strong> You get the cause and what it takes to fix it, whichever way it goes.</p>
+        <a class="btn primary" href="#offer" style="margin-top:15px">Start a diagnosis →</a>
+      </div>
+    </article>
+
+    <!-- ===== OVER THE TOP: WW1 ===== -->
+    <article class="feat">
+      <div class="fhead">
+        <div class="plat"><b><a href="https://store.steampowered.com/app/2778610/Over_The_Top_WWI/" target="_blank" rel="noopener">Over the Top: WW1</a></b> · Flying Squirrel Entertainment · Unity IL2CPP · 200-player</div>
+        <span class="flag">Shipped in a hotfix</span>
+      </div>
+      <h3><!-- link disabled 27/07: <a href="writing/every-millisecond-of-a-200-player-frame.html"> -->Worst-frame stutter in a 200-player session, now fixed<!-- </a> --><!-- n1, 01/08: was "Noticeable frame drops in a 200-player session fixed". --></h3>
+
+      <!-- C, 01/08: the result was only ever stated inside a paragraph and a 22px stat box.
+           Additive: no prose was touched. -->
+      <div class="ba-num" style="margin-top:22px"><span class="lb">before</span><span class="from">&lt;20</span><span class="u">fps</span><span class="arr">→</span><span class="lb">after</span><span class="to">&gt;60</span><span class="u">fps</span><span class="un">· the worst frames in a 200-player session</span></div>
+
+      <div class="result-banner" style="margin-top:24px">
+        <div class="stat">
+          <div class="k">What it cost to find out</div>
+          <div class="v" style="font-size:clamp(18px,2vw,22px)">Nothing but the build</div>
+          <div class="sub">No source access, no onboarding.</div>
+        </div>
+        <div class="stat">
+          <div class="k">What they did with it</div>
+          <div class="v fix" style="font-size:clamp(18px,2vw,22px)"><a href="https://steamcommunity.com/games/2778610/announcements/detail/508482584447025623" target="_blank" rel="noopener">Hotfix 1.0117</a></div>
+          <div class="sub">Shipped the following day, carrying the performance findings. Easily one of the nicest teams to work with, open-minded and talented people.</div>
+        </div>
+      </div>
+
+      <div class="feat-num-row" style="margin-top:26px">
+        <div class="col-a">
+          <p class="lead">The average frame looked healthy, around 108 fps, but a persistent stutter caused the worst frames to drop below 20 fps without clear cause.</p>
+          <p class="lead">With custom native profiling and an extremely responsive dev team, we attributed every millisecond of the 200-player frame dips, and lifted the worst-case dips from <strong>&lt;20 fps to &gt;60 fps</strong>.</p>
+          <!-- link disabled 27/07: <a class="more" href="writing/every-millisecond-of-a-200-player-frame.html">Read the investigation →</a> -->
+        </div>
+        <div class="col-b">
+          <div class="chart">
+            <div class="clab"><span>Ten worst frames · whole-frame ms</span></div><!-- 01/08: was two spans, which .clab's space-between threw to opposite corners and made read as axis labels. One span sits at flex-start on its own, so this needs no CSS override. .clab is shared with work.html. -->
+            <svg viewBox="0 0 100 40" role="img" aria-label="Bar chart of the ten worst frame times in one session, from 672 ms down to 196 ms, towering over a 20 ms frame budget">
+              <rect x="7"    y="5.20"  width="6.2" height="28.80" rx="0.6" class="c-symptom"/>
+              <rect x="15.9" y="13.51" width="6.2" height="20.49" rx="0.6" class="c-symptom"/>
+              <rect x="24.8" y="18.91" width="6.2" height="15.09" rx="0.6" class="c-symptom"/>
+              <rect x="33.7" y="19.43" width="6.2" height="14.57" rx="0.6" class="c-symptom"/>
+              <rect x="42.6" y="23.67" width="6.2" height="10.33" rx="0.6" class="c-symptom"/>
+              <rect x="51.5" y="23.71" width="6.2" height="10.29" rx="0.6" class="c-symptom"/>
+              <rect x="60.4" y="24.44" width="6.2" height="9.56"  rx="0.6" class="c-symptom"/>
+              <rect x="69.3" y="24.70" width="6.2" height="9.30"  rx="0.6" class="c-symptom"/>
+              <rect x="78.2" y="24.74" width="6.2" height="9.26"  rx="0.6" class="c-symptom"/>
+              <rect x="87.1" y="25.60" width="6.2" height="8.40"  rx="0.6" class="c-symptom"/>
+              <!-- the 20 ms budget, drawn to the same scale as the bars: 0.86 units tall.
+                   Given area and a label at the axis, because as a hairline it was invisible,
+                   which is the point the chart is making, so it has to be legible. -->
+              <rect x="4" y="33.14" width="94" height="0.86" class="c-accent" opacity=".3"/>
+              <line x1="4" y1="33.14" x2="98" y2="33.14" class="s-accent" stroke-width="0.3"/>
+              <line x1="4" y1="34" x2="98" y2="34" class="s-line" stroke-width="0.4"/>
+              <text x="4" y="38.4"  font-size="2.6" class="c-accent">← 20 ms frame budget</text>
+              <text x="98" y="38.4" font-size="2.7" class="c-dim" text-anchor="end">~9 ms average · 108 fps</text><!-- 01/08: was 2.4/c-faint (#586673), too dark on --ink-2 to read at this size. --dim is the same role one step brighter. -->
+              <text x="10.1" y="3.6"  font-size="3" class="c-symptom" text-anchor="middle">672 ms</text>
+              <text x="90.2" y="23.4" font-size="2.6" class="c-symptom" text-anchor="middle">196 ms</text>
+            </svg>
+            <div class="cnote">The average frame was fine. The worst frames ran <strong>10–34× over expected budget</strong>, causing noticeable stuttering.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout note">
+        <div class="lbl">Similar problem?</div>
+        <p><strong>Frame drops or stutter in one place? €2,500, report in two weeks.</strong> Get an audit report: the cause and what it takes to fix it, whichever way it goes.</p>
+        <a class="btn primary" href="#offer" style="margin-top:15px">Start a diagnosis →</a>
+      </div>
+    </article>
+
+    <!-- ===== theHUNTER: CALL OF THE WILD ===== -->
+    <article class="feat">
+      <div class="fhead">
+        <div class="plat"><b><a href="https://store.steampowered.com/app/518790/theHunter_Call_of_the_Wild/" target="_blank" rel="noopener">theHunter: Call of the Wild</a></b> · Expansive Worlds / Avalanche · Apex · D3D11</div>
+        <span class="flag">Fixed and shipped</span>
+      </div>
+      <h3><!-- link disabled 27/07: <a href="writing/the-ghost-species.html"> -->A mythical reward species that wasn't showing up<!-- </a> --></h3>
+
+      <div class="result-banner" style="margin-top:20px">
+        <div class="stat">
+          <div class="k">What it cost to find out</div>
+          <div class="v" style="font-size:clamp(18px,2vw,22px)">Nothing but the build</div>
+          <div class="sub">No source access, no onboarding.</div>
+        </div>
+        <div class="stat">
+          <div class="k">What they did with it</div>
+          <div class="v fix" style="font-size:clamp(18px,2vw,22px)"><a href="https://store.steampowered.com/news/app/518790/view/512988086526808432" target="_blank" rel="noopener">Fixed in patch 9.1</a></div>
+          <!-- sub removed 31/07: "Relayed to QA, reproduced from the report, then fixed and
+               shipped in an official update." The named, linked patch says it. -->
+        </div>
+      </div>
+
+      <!-- C, 01/08: moved up from below the two paragraphs. Not reworded, just promoted
+           to the top of the block so the case opens on its result. -->
+      <div class="ba-num" style="margin-top:24px"><span class="lb">before</span><span class="from">0</span><span class="arr">→</span><span class="lb">after</span><span class="to">100%</span><span class="un">spawn rate for affected players · root cause, repro steps and save-file forensics</span></div>
+
+      <div class="feat-split" style="margin-top:26px">
+        <div class="col-a">
+          <p class="lead">The Wild Haggis was the game's first mythical creature, added with the Scotland reserve. Finish the Scotland mission and it should start appearing on the map. Players reported that it never did, some of them after hundreds of hours of searching. It was meant to be very hard to find, not impossible, and the community had documented the pattern for a long time without ever finding the cause.</p>
+          <p class="lead">So I went hunting for a potential bug instead. Working from the closed-source retail binary, with the community's reports as the only lead, the cause turned out to be two of the game's own subsystems competing, which left the haggis unable to spawn.</p>
+          <!-- link disabled 27/07: <a class="more" href="writing/the-ghost-species.html">Read the investigation →</a> -->
+        </div>
+        <div class="col-b">
+          <figure style="margin:0"><img class="zoomable" src="assets/img/proof-haggis-patchnote.webp" alt="Official studio announcement confirming the haggis spawn bug and a committed fix" loading="lazy" style="width:100%;border:1px solid var(--line-2);border-radius:10px"><figcaption style="font-family:var(--mono);font-size:12px;color:var(--faint);text-align:center;margin-top:10px">Expansive Worlds announcing the incoming fix.</figcaption></figure>
+          <p class="lead" style="margin-top:18px">On the same title, a <!-- link disabled 27/07: <a href="writing/one-savanna-tanked-the-framerate.html"> -->separate investigation<!-- </a> --> into <a href="https://store.steampowered.com/app/894600/theHunter_Call_of_the_Wild__Vurhonga_Savanna/" target="_blank" rel="noopener">Vurhonga Savanna</a>'s frame rate traced ~42% of unexpected frame cost to two level-of-detail tiers of a single grass mesh, and recovered up to <strong>+79%</strong>, 143 fps to 256 fps.</p>
+        </div>
+      </div>
+
+      <div class="callout note">
+        <div class="lbl">Similar problem?</div>
+        <p><strong>Are your players encountering a bug? €2,500, report in two weeks.</strong> Get an audit report chasing the root cause, the evidence behind it, and what it takes to fix.</p>
+        <a class="btn primary" href="#offer" style="margin-top:15px">Start a diagnosis →</a>
+      </div>
+    </article>
+
+    <!-- ===== RUST · the correctness block ===== -->
+    <article class="feat">
+      <div class="fhead">
+        <div class="plat"><b><a href="https://store.steampowered.com/app/252490/Rust/" target="_blank" rel="noopener">Rust</a></b> · Facepunch Studios · Unity + native</div>
+        <span class="flag">Rebuilt + accelerated</span>
+      </div>
+      <h3><!-- link disabled 27/07: <a href="writing/same-island-pixel-for-pixel.html"> -->4.6 min of world generation, down to 20 s<!-- </a> --></h3>
+      <p class="lead" style="margin-top:14px; max-width:74ch">Rust's world is generated by a closed-source native library with no public specification. I reimplemented it from the outside as a bit-exact port at <strong>2× the performance</strong>, and then built a performance-first port that does the same work in <strong>20 seconds</strong>.</p>
+
+      <div class="feat-split top" style="margin-top:22px">
+        <div class="col-a">
+          <div class="ba-num tight"><span class="lb">before</span><span class="from">~4.6 min</span><span class="arr">→</span><span class="lb">after</span><span class="to">20.6 s</span><span class="un">13.4× · same map size (4500), same seed, same machine · two other seeds land at 18.6 s and 18.9 s</span></div>
+          <p class="lead" style="margin-top:20px">Rust servers wipe on a weekly to monthly cycle, and wipe day is the busiest moment in the game. Picking and publishing a map in that window means waiting on the generator, so the question was how short that wait could get. Measured against my own multithreaded port instead of the game's, the same campaign ran <strong>140.6 s → 20.6 s, 6.8×</strong>.<!-- The hardware line ("single-threaded vs 32 cores and a CUDA GPU") was cut on the operator's call: it invites the reader to conclude the gain was bought with a bigger machine, when the parallelisation and the CUDA path had to be written first. The like-for-like number against his own already-multithreaded port is what carries the fairness now, and it carries it better. --></p>
+          <p class="lead" style="margin-top:16px"><strong>The two largest wins were defects in the original rather than tuning.</strong> Beyond those: multi-core parallelisation, SIMD, a new pathfinding routine, and sub-phases made independently parallelisable, so even the stages that have to stay serial can be run across several maps at once.</p>
+          <!-- link disabled 27/07: <a class="more" href="writing/same-island-pixel-for-pixel.html">Read the investigation →</a> -->
+        </div>
+        <div class="col-b">
+          <div class="renders">
+            <figure><img class="zoomable" src="assets/img/rust-map-official.webp" alt="Official Rust map render, seed 1" loading="lazy"><div class="rcap">The game's own renderer</div></figure>
+            <figure><img class="zoomable" src="assets/img/rust-map-port.webp" alt="Clean-room reimplementation render, seed 1, visually identical" loading="lazy"><div class="rcap after">My reimplementation</div></figure>
+          </div>
+          <p class="lead" style="margin-top:20px"><strong>And bit-exactness is optional.</strong> The fastest version drops it in favour of maximum performance. It doesn't reproduce the game's output bit for bit from the same seed, but it generates the same gameplay-level features, so there is no noticeable difference for players. CUDA takes out the last few seconds on top of that. When the output does have to match the game exactly, that path exists and is proven: the bit-exact port is byte-for-byte identical to the game's own output, every noise primitive and every terrain layer, and the accelerated version that <em>keeps</em> that guarantee runs <strong>~116 s, 2.4× faster than the game</strong>, with <strong>1.90× throughput</strong> on top.</p>
+          <!-- The "maxULP = 0" display block was deleted 30/07. Two reasons: it was the single
+               element making col-b so much taller than col-a, and "maxULP" was misread as
+               "finishing last" during an earlier review, so it needed a gloss longer than the
+               claim it was making. The substance it carried (identical across every noise
+               primitive and every terrain layer) is folded into the paragraph above, which
+               already said "byte-for-byte identical". Deleted content, for restoring:
+               maxULP, the worst error, measured in the smallest step a number can take.
+               Measured that way, the largest gap from the game was zero: identical, not "close".
+               Every noise primitive (800/800) and every terrain layer (height, biome, topology,
+               splat) matched exactly. -->
+        </div>
+      </div>
+
+      <div class="callout note">
+        <div class="lbl">Similar problem?</div>
+        <p><strong>A system taking minutes when it should take seconds? €2,500, report in two weeks.</strong> Get an audit report: where the time actually goes, measured on the shipped build, and what it takes to fix.</p>
+        <a class="btn primary" href="#offer" style="margin-top:15px">Start a diagnosis →</a>
+      </div>
+    </article>
+
+    <!-- ===== STORMWORKS ===== -->
+    <article class="feat">
+      <div class="fhead">
+        <div class="plat"><b><a href="https://store.steampowered.com/app/573090/Stormworks_Build_and_Rescue/" target="_blank" rel="noopener">Stormworks: Build and Rescue</a></b> · Geometa · native · embedded Bullet physics</div>
+        <span class="flag ghost">Physics performance</span>
+      </div>
+      <h3><!-- link disabled 27/07: <a href="writing/the-tick-that-collapsed.html"> -->One save dragged the tick rate from 64 to 15<!-- </a> --></h3>
+
+      <!-- C, 01/08: same as the Over the Top block. The two stats below keep the framing
+           ("the symptom" / "after"); this states the recovery at the size it deserves. -->
+      <div class="ba-num" style="margin-top:22px"><span class="lb">before</span><span class="from">10–17</span><span class="arr">→</span><span class="lb">after</span><span class="to">~61</span><span class="un">ticks per second · ~99% recovered</span></div>
+
+      <div class="result-banner" style="margin-top:24px">
+        <div class="stat">
+          <div class="k">The symptom</div>
+          <div class="v sym" style="font-size:clamp(18px,2vw,22px)">64 → 10–17 TPS</div>
+          <div class="sub">The same in singleplayer as on a server. Healthy on every other save.</div>
+        </div>
+        <div class="stat">
+          <div class="k">After</div>
+          <div class="v fix" style="font-size:clamp(18px,2vw,22px)">~61 TPS restored</div>
+          <div class="sub">~99% recovered, and a no-op on saves that were never affected.</div>
+        </div>
+      </div>
+
+      <div class="feat-split" style="margin-top:26px">
+        <div class="col-a">
+          <p class="lead">A single stale physics record was costing roughly <strong>50 ms of every tick</strong>. Found in the shipped binary, without source, and fixed three independent ways so the studio could pick whichever one fit their release process. Each one a no-op on saves that didn't have the problem.</p>
+          <p class="lead">Separately, on the same title, I rebound the game's physics through my own native layer: the constraint solver went from <strong>9.5 ms to 6.1 ms</strong>, and shadow rendering from <strong>12–13 ms to about 3 ms</strong>, taking the whole frame from <strong>42 to 55 fps</strong>. On top of the engine work I also built a few server-side mods for the same title, adding automatic recovery and similar operational benefits.</p>
+          <!-- link disabled 27/07: <a class="more" href="writing/the-tick-that-collapsed.html">Read the investigation →</a> -->
+        </div>
+        <div class="col-b">
+          <div class="chart">
+            <svg viewBox="0 0 100 26" role="img" aria-label="Tick rate steady at about 61, collapsing to about 15 the moment the problem save loads, then restored to about 61 after the fix">
+              <line x1="2" y1="5" x2="98" y2="5" class="s-faint" stroke-width="0.4" stroke-dasharray="1.4 1.4"/>
+              <text x="98" y="3.7" font-size="2.4" class="c-faint" text-anchor="end">64 nominal</text>
+              <line x1="30" y1="5" x2="30" y2="23" class="s-line" stroke-width="0.35" stroke-dasharray="1 1"/>
+              <line x1="63" y1="5" x2="63" y2="23" class="s-line" stroke-width="0.35" stroke-dasharray="1 1"/>
+              <text x="30" y="3.7" font-size="2.3" class="c-faint" text-anchor="middle">save loads</text>
+              <text x="63" y="3.7" font-size="2.3" class="c-faint" text-anchor="middle">fix applied</text>
+              <polyline points="3,6.4 30,6.4" fill="none" class="s-accent" stroke-width="1.5"/>
+              <polyline points="30,6.4 33,20 63,20" fill="none" class="s-symptom" stroke-width="1.5"/>
+              <polyline points="63,20 66,6.4 97,6.4" fill="none" class="s-accent" stroke-width="1.5"/>
+              <text x="4" y="9.9" font-size="2.6" class="c-accent">~61 TPS</text>
+              <text x="46.5" y="23.9" font-size="2.6" class="c-symptom" text-anchor="middle">~15 TPS · a crawl</text>
+              <text x="97" y="9.9" font-size="2.6" class="c-accent" text-anchor="end">~61 restored</text>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout note">
+        <div class="lbl">Similar problem?</div>
+        <p><strong>Tickrate collapsing? €2,500, report in two weeks.</strong> Get an audit report chasing the root cause, the measurements behind it, and what it takes to fix.</p>
+        <a class="btn primary" href="#offer" style="margin-top:15px">Start a diagnosis →</a>
+      </div>
+    </article>
+
+    <!-- ===== GUILD WARS 2 · WITHHELD, pending publication of the underlying work/results.
+         Hidden 26/07 with the `hidden` attribute; commented out instead on 27/07, because
+         `hidden` still ships the markup to crawlers and they can index what a browser won't
+         paint. Kept intact, not deleted. To restore: delete this opening marker and the
+         matching closing marker after the block. Nothing else on the page depends on it.
+
+    <p class="eyebrow" style="margin-top:52px">If your problem lives somewhere you can't rebuild</p>
+    <article class="feat">
+      <div class="fhead">
+        <div class="plat"><b>Guild Wars 2</b> · ArenaNet · 14-year-old live client · D3D11 → Vulkan</div>
+        <span class="flag ghost">Capability</span>
+      </div>
+      <h3><a href="writing/virtual-shadow-maps.html">Modernised shadow rendering, from outside the binary</a></h3>
+
+      <div class="feat-split" style="margin-top:22px">
+        <div class="col-a">
+          <p class="lead">The shadow rendering in a fourteen-year-old live commercial client, replaced with a modern virtual shadow map, from outside the process, through a D3D-to-Vulkan translation layer, with no source access and no cooperation from anyone who built it. The technique is well established and published; the work was getting it into a binary that was never designed to accept it.</p>
+          <p class="lead">The engine's own shadow work costs <strong>3.98 ms</strong> a frame, measured. My replacement's GPU compose measures <strong>0.249 ms</strong>, <strong>16× under that budget</strong>, behind a correctness gate at <strong>mean |Δ| = 0.000000</strong>, verified against the native path across every compose mode the engine has.</p>
+          <a class="more" href="writing/virtual-shadow-maps.html">Follow the build log →</a>
+        </div>
+        <div class="col-b">
+          <div class="hero-num big">16×<span class="u">under the engine's own measured shadow budget · correctness gate at mean |Δ| = 0.000000</span></div>
+          <p class="lead" style="margin-top:24px">This one is on the page as evidence of <strong>what is reachable from outside a binary</strong>. If your bottleneck is inside middleware, a plugin, a driver-adjacent path, or a subsystem whose author has left, this is the demonstration that outside-in is a real way to work, not a workaround.</p>
+          <p class="lead" style="margin-top:16px">The build log is published while it's still in progress, caveats and all. The <a href="writing/what-a-frame-costs.html">frame-budget investigation that preceded it</a> is the more conventional read.</p>
+        </div>
+      </div>
+
+      <div class="callout note">
+        <div class="lbl">Similar problem?</div>
+        <p><strong>Bottleneck inside middleware or a plugin you don't have the source for? €2,500, report in two weeks.</strong> Same deal. The absence of source is the normal condition here, not an obstacle to work around.</p>
+      </div>
+    </article>
+
+    ===== end of the withheld Guild Wars 2 block ===== -->
+
+  </div>
+</section>
+
+<!-- ============ 4 · THE OFFER ============ -->
+<section id="offer" class="divider-top">
+  <div class="wrap">
+    <div class="section-head"><h2>The offer</h2></div>
+    <p class="section-sub" style="max-width:70ch"><strong style="color:var(--text)">For the first engagement: One problem, you pick which one.</strong> Two weeks on it, and you get everything I find.</p><!-- n6, 01/08: was "One problem. You pick which one." -->
+
+    <div class="result-banner" style="margin-top:30px">
+      <div class="stat">
+        <div class="k">What you get</div>
+        <div class="v">A root-cause report</div>
+        <div class="sub">What is actually causing the defect, the evidence for it, and what it takes to fix it. Delivered inside two weeks.</div>
+      </div>
+      <div class="stat">
+        <div class="k">What the first engagement costs</div>
+        <div class="v fix">€2,500 fixed</div>
+        <div class="sub">One number, not a range. Agreed before I start, and it does not move.</div>
+      </div>
+    </div>
+
+    <p class="section-sub" style="margin-top:34px; max-width:70ch">The report is written so that <strong style="color:var(--text)">your own team can act on it</strong>: the cause, the evidence, what it takes to fix it, and roughly what that fix costs. If the symptom turns out to have more than one cause, you get all of them. The two-week deadline is what bounds this, not the number of causes.</p>
+
+    <p class="section-sub" style="max-width:70ch">We agree which problem it is on a free scoping call, before anything is paid. You pick by pain, whichever one is costing you most, and we work out together what that actually covers. Everything after this first engagement is scoped the same way and quoted as a fixed fee before it starts. No day rates, no open-ended engagements.</p>
+
+    <!-- n7, 01/08: "Is this a fit?" is no longer its own section; it is folded into the
+         offer, directly above the ask. Price, deliverable and disqualification are one
+         bundled consideration; everything from "Before you decide" onwards is additional
+         reading and stays where it is.
+
+         Ported 01/08 from work.html, the only place on the site where the disqualification
+         was scannable instead of scattered through prose. Only the fit half came across:
+         "Two ways to work with me", the block above it there, belongs to the data-engineering
+         door and has no place on this page. -->
+    <div class="fit-in">
+      <h3>Is this a fit?</h3>
+      <div class="cap-cols" style="margin-top:26px">
+        <div>
+          <h4 style="color:var(--accent)">A good fit when</h4>
+          <ul class="cap-list">
+            <li><b>The obvious fixes already failed</b><span class="d">The problem is real and reproducible, and the first plausible explanations didn't hold. You want the actual root cause found, not another guess.</span></li>
+            <li><b>You want it proven, not asserted</b><span class="d">A before/after in numbers anyone can check, measured on the real build, matters more to you than a confident opinion.</span></li>
+            <li><b>Understanding has to come first</b><span class="d">A shipped binary, an engine you don't have the source for, or a system nobody still on the team wrote, has to be understood before anything gets built on top of it.</span></li>
+            <li><b>Defined scope suits you</b><span class="d">A defined problem and a defined deliverable, handled async and written-first, fits how you want to work.</span></li>
+          </ul>
+        </div>
+        <div>
+          <h4 style="color:var(--symptom)">Probably not a fit when</h4>
+          <ul class="cap-list">
+            <li><b>You need ongoing staffing</b><span class="d">A pair of hands by the hour, to work through a backlog, is a different kind of hire. I take on one defined problem and see it through to a proven result.</span></li>
+            <li><b>It has to run on meetings</b><span class="d">Standups, live availability, managed time. I work async and written-first, which is what the deep focus depends on.</span></li>
+            <li><b>The conclusion is already locked in</b><span class="d">Being brought in as a reference expert or a second opinion is welcome. What doesn't work is a conclusion fixed on untested assumptions, with no room for an investigation that might disprove it.</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- n8, 01/08: the second button was "See the work first" → #proof. After the proof moved
+         above the offer, that link sent the reader ~5,700px backwards over ground they had
+         already covered. The real third option was never a button: keep reading. Stating it
+         as text keeps the reader on one decision instead of three. -->
+    <div class="cta-row" style="margin-top:30px; align-items:center">
+      <a class="btn primary" href="mailto:hello@sebastienvercammen.be">Email me your symptoms</a>
+      <span class="keep-reading">Or keep reading to see what to expect <span aria-hidden="true">↓</span></span>
+    </div>
+  </div>
+</section>
+
+<!-- Proof bar removed 26/07: it sat directly under "The offer" and read as a teaser for the
+     six proof blocks further down. All three of its claims (the Windrose credit, Hotfix 1.0117,
+     maxULP = 0) are stated in full, with evidence, in those blocks. Nothing was lost. -->
+
+<!-- ============ 5 · THE THREE CALMING ELEMENTS ============ -->
+
+<!-- A. What you have to give me -->
+<section class="divider-top">
+  <div class="wrap">
+    <p class="eyebrow">Before you decide</p>
+    <div class="section-head"><h2>All you hand over is the public build.</h2></div>
+    <p class="section-sub" style="max-width:70ch">The same download your players have. Nothing else is needed to start.</p>
+
+    <div class="cap-cols" style="margin-top:40px">
+      <div>
+        <h4 style="color:var(--accent)">What stays on your side</h4>
+        <ul class="cap-list">
+          <li><b>Your source code</b><span class="d">No repo, no branch, no build server seat, no symbols. I don't need them to do my work.</span></li>
+          <li><b>Your engineers' time</b><span class="d">Nobody needs to come off a sprint to onboard me, answer questions, or walk an outsider through the codebase. If someone wants to, that's welcome, it just isn't required.</span></li>
+          <li><b>Your legal timeline</b><span class="d">Nothing here needs an NDA negotiated before it starts, because I only ever see the build your players already have. If your legal team wants one in place anyway, I'm glad to sign a reasonable one.</span></li>
+        </ul>
+      </div>
+      <div>
+        <h4 style="color:var(--accent)">What helps, if you happen to have it</h4>
+        <ul class="cap-list">
+          <li><b>A repro, or the closest thing to one</b><span class="d">Steps, a save file, a specific map, a hardware configuration it happens on. Useful, not required. Plenty of these arrive with no repro at all, and building one is part of the work.</span></li>
+          <li><b>Crash dumps or telemetry you've already collected</b><span class="d">If you have them, send them. If you don't have them, that works for me too.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- B. What happens during the two weeks -->
+<section class="divider-top">
+  <div class="wrap">
+    <div class="section-head"><h2>What happens during the two weeks</h2></div>
+    <div class="tl">
+      <div>
+        <div class="tl-lbl">Laying the groundwork</div>
+        <div class="tl-row">
+          <div class="tl-step">
+            <div class="tl-when">Days 1–3</div>
+            <h3>I reproduce it, or tell you I can't</h3>
+            <p>The first thing I do is turn your problem into something that happens on demand, on my machine, on the retail build. If it won't reproduce, you hear that in the first days.</p>
+          </div>
+          <div class="tl-step">
+            <div class="tl-when">Days 3–12</div>
+            <h3>Measure, then narrow</h3>
+            <p>Instrument the shipped binary, measure where the time or the memory or the fault actually goes, and eliminate candidate causes until we arrive at the root.</p>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="tl-lbl">What lands on your desk</div>
+        <div class="tl-row">
+          <div class="tl-step">
+            <div class="tl-when">Day 7</div>
+            <h3>A halfway update</h3>
+            <p>What's been ruled out, what's still standing, and whether my estimate of the answer has changed.</p>
+          </div>
+          <div class="tl-step">
+            <div class="tl-when">Day 14</div>
+            <h3>The audit report</h3>
+            <p>The cause, the evidence chain that proves it, what it would take to fix, and roughly what that fix costs. Written for an engineer on your team who can start the implementation without me.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="section-sub" style="margin-top:28px; max-width:70ch">The work is done independently, communication is async and written-first throughout. No daily standup, and no requirement that anyone on your side is available on a given day.</p>
+  </div>
+</section>
+
+<!-- C. What "no" looks like -->
+<section class="divider-top">
+  <div class="wrap">
+    <div class="section-head"><h2>What "no" looks like</h2></div>
+    <p class="section-sub" style="max-width:72ch">Sometimes the symptoms don't turn out to be what we expected: the issue is caused by user error, the bug sits in the code of a third-party vendor, or the thing everybody blamed turns out to be innocent.</p>
+
+    <div class="result-banner">
+      <div class="stat">
+        <div class="k">If there <span class="tog">is</span> a cause to find</div>
+        <div class="v fix">€2,500 fixed</div>
+        <div class="sub">Inside two weeks: the cause, the evidence, and what it takes to fix it.</div>
+      </div>
+      <div class="stat">
+        <div class="k">If there is <span class="tog">no</span> cause to find</div>
+        <div class="v fix">€2,500 fixed</div>
+        <div class="sub">Inside two weeks: a report documenting what was done, what was ruled out, how it was measured, and next steps to take.</div>
+      </div>
+    </div>
+
+    <div class="converge"></div>
+
+    <div class="callout note" style="max-width:76ch; margin-top:0">
+      <div class="lbl">The deliverable is the same either way</div>
+      <p>The report has the same shape whichever way it goes: every cause considered, how each one was tested, what the evidence did to it, and what the next steps are to resolve it. <strong>Same price, same deadline, and if it's beyond my abilities to diagnose it I'll say so plainly and explain why.</strong></p>
+    </div>
+
+    <p class="section-sub" style="max-width:72ch">A published example: on <!-- link disabled 27/07: <a href="writing/the-startup-crash-in-the-runtime.html"> -->Windrose<!-- </a> -->, the answer was that the studio's own code wasn't at fault. The crash sat below the game, in a bundled runtime component. They published it in their FAQ the same week.</p>
+  </div>
+</section>
+
+<!-- ============ 6 · THEN, THE FIX ============ -->
+<section class="divider-top">
+  <div class="wrap">
+    <div class="section-head"><h2>And if you want me to implement the fix</h2></div>
+    <p class="section-sub" style="max-width:72ch">The audit report already tells you <strong style="color:var(--text)">what the fix involves and roughly what it costs</strong>. That's part of the deliverable whether I do the work or your team does. If you want me to implement the fix, the audit report will scope the work that needs to be done, and these things are settled before that work starts:</p>
+
+    <div class="cap-cols" style="margin-top:30px">
+      <div>
+        <ul class="cap-list">
+          <li><b>A written success criterion, agreed in advance</b><span class="d">SMART success criteria: Specific, Measurable, Achievable, Relevant, and Time-bound. Examples: <em>"Crash X no longer reproduces across 100 runs of scenario Y"</em> and <em>"Frames per second in scene Z stays above N on the reference machine"</em>.</span></li>
+          <li><b>You choose the benchmark scenes</b><span class="d">Your build, your maps, your hardware. Concretely defined measurements so you don't have to take my word for it.</span></li>
+        </ul>
+      </div>
+      <div>
+        <ul class="cap-list">
+          <li><b>Optionally, with milestone bonuses</b><span class="d">If you want to go the extra mile, part of the fee can be tied to hitting additional goals beyond the baseline. E.g. +30% avg fps baseline, with every extra +5% avg fps being a separate milestone, up to +60% avg fps, with fees fixed upfront to eliminate surprises.</span></li>
+          <li><b>Handing it to your own team is a normal outcome</b><span class="d">The report is written to be actionable by an engineer who has the source. The audit report by itself will be sufficient to do the work, even if someone else does it.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 7 · CONFIDENTIALITY ============ -->
+<section class="divider-top">
+  <div class="wrap">
+    <div class="section-head"><h2>Confidentiality</h2></div>
+    <div class="callout withheld" style="max-width:76ch">
+      <div class="lbl">Results are shared · Methods stay private</div>
+      <p>In the audit report, I publish what was found and what to do next. In case studies, I never publish how it was found: no approaches, no tooling, no route into game binaries. Every write-up withholds the method on purpose, to prevent wrongful use.<!-- Was: "Every write-up linked from this page withholds..." Restore when the links are re-enabled. --></p>
+      <p>I don't discuss one studio's build with another, and nothing about your engagement appears anywhere without your written approval, including the fact that it happened. I'll work under NDA if you want one in place.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 8 · THE LONG VERSION · WITHHELD 27/07 ============
+
+     The whole section is commented out because the write-ups it links to are not being
+     published yet. It exists only to link them, so unlinking would leave a heading that
+     promises seven write-ups and delivers nothing. To restore: delete this opening marker
+     and the closing marker after the section, then re-link the proof blocks above (search
+     the file for "link disabled 27/07").
+
+<section class="divider-top">
+  <div class="wrap">
+    <div class="section-head"><h2>The long version, for your engineers</h2></div>
+    <p class="section-sub" style="max-width:74ch">Seven full technical write-ups. Each one carries its own claim/status table, its own caveats, and an explicit note on what was measured versus what is still unproven. Written for a technical director.</p>
+
+    <div style="margin-top:26px">
+      <article class="slim">
+        <div class="sfig"><span class="ok">◆</span>&nbsp; 6.8× faster</div>
+        <div class="sbody"><div class="sh"><a href="writing/same-island-pixel-for-pixel.html">Same island, pixel for pixel</a></div><div class="sd">A closed native world generator reimplemented from outside and graded against the live game until the difference was zero, then forked, deliberately made inexact, and optimised 6.8×.</div></div>
+        <a class="sgo" href="writing/same-island-pixel-for-pixel.html">Read →</a>
+      </article>
+      <article class="slim">
+        <div class="sfig"><span class="ok">◆</span>&nbsp; 20 → 60 fps</div>
+        <div class="sbody"><div class="sh"><a href="writing/every-millisecond-of-a-200-player-frame.html">Every millisecond of a 200-player frame</a></div><div class="sd">A full per-subsystem frame budget built for a closed binary, and what it found hiding behind a healthy-looking average.</div></div>
+        <a class="sgo" href="writing/every-millisecond-of-a-200-player-frame.html">Read →</a>
+      </article>
+      <article class="slim">
+        <div class="sfig"><span class="ok">◆</span>&nbsp; crash fixed</div>
+        <div class="sbody"><div class="sh"><a href="writing/the-startup-crash-in-the-runtime.html">The startup crash in the runtime</a></div><div class="sd">A crash that only happened to players, placed below the game in the shipped graphics runtime.</div></div>
+        <a class="sgo" href="writing/the-startup-crash-in-the-runtime.html">Read →</a>
+      </article>
+      <article class="slim">
+        <div class="sfig"><span class="ok">◐</span>&nbsp; 0 → 100% spawn</div>
+        <div class="sbody"><div class="sh"><a href="writing/the-ghost-species.html">The ghost species</a></div><div class="sd">A mission-reward species that appeared for some players and vanished forever for others. Root-caused in a stripped, symbol-less binary.</div></div>
+        <a class="sgo" href="writing/the-ghost-species.html">Read →</a>
+      </article>
+      <article class="slim">
+        <div class="sfig"><span class="ok">◐</span>&nbsp; +79% fps</div>
+        <div class="sbody"><div class="sh"><a href="writing/one-savanna-tanked-the-framerate.html">Why one savanna tanked the frame rate</a></div><div class="sd">Turning "this map feels laggy" into a measured deficit, then collapsing it onto two LOD tiers of one mesh.</div></div>
+        <a class="sgo" href="writing/one-savanna-tanked-the-framerate.html">Read →</a>
+      </article>
+      <article class="slim">
+        <div class="sfig"><span class="ok">◐</span>&nbsp; ~99% recovered</div>
+        <div class="sbody"><div class="sh"><a href="writing/the-tick-that-collapsed.html">The tick that collapsed</a></div><div class="sd">One save, one stale physics record, ~50 ms every tick. Fixed three independent ways, a no-op on healthy saves.</div></div>
+        <a class="sgo" href="writing/the-tick-that-collapsed.html">Read →</a>
+      </article>
+      <article class="slim">
+        <div class="sfig"><span class="ok">◐</span>&nbsp; crash eliminated</div>
+        <div class="sbody"><div class="sh"><a href="writing/the-controller-that-crashed-the-game.html">The controller that crashed the game</a></div><div class="sd">One specific controller crashed the game on launch, every time. Traced to an uninitialized audio object, and to a second crash the obvious fix would have caused.</div></div>
+        <a class="sgo" href="writing/the-controller-that-crashed-the-game.html">Read →</a>
+      </article>
+      ===== the three cards below are withheld for a second, separate reason: the underlying
+            work is not published yet. Even when the write-ups go live, these three stay out
+            until that work is public. =====
+
+      <article class="slim">
+        <div class="sfig"><span class="ok">◑</span>&nbsp; frame budget</div>
+        <div class="sbody"><div class="sh"><a href="writing/what-a-frame-costs.html">What a frame costs</a></div><div class="sd">A 14-year-old engine given its first live per-subsystem frame budget, and the finding that most of the shadow work repeats unchanged.</div></div>
+        <a class="sgo" href="writing/what-a-frame-costs.html">Read →</a>
+      </article>
+      <article class="slim">
+        <div class="sfig"><span class="ok">◐</span>&nbsp; live build log</div>
+        <div class="sbody"><div class="sh"><a href="writing/virtual-shadow-maps.html">Virtual shadow maps for a 14-year-old engine</a></div><div class="sd">A modern shadow path grafted onto a live commercial client from the outside. Published in progress, on purpose, including what is still unproven.</div></div>
+        <a class="sgo" href="writing/virtual-shadow-maps.html">Follow →</a>
+      </article>
+      <article class="slim">
+        <div class="sfig"><span class="no">✗</span>&nbsp; null result</div>
+        <div class="sbody"><div class="sh"><a href="writing/the-optimization-that-wasnt.html">The optimization that wasn't</a></div><div class="sd">A promising physics optimization killed before a line was written: reverse-engineering proved the engine already did it. This is what a negative deliverable looks like.</div></div>
+        <a class="sgo" href="writing/the-optimization-that-wasnt.html">Read →</a>
+      </article>
+
+      ===== end of the three separately withheld cards =====
+    </div>
+  </div>
+</section>
+
+===== end of section 8, The long version ===== -->
+
+<!-- ============ CONTACT ============ -->
+<section id="contact" class="contact divider-top">
+  <div class="wrap">
+    <h2>One problem, €2,500, and a cause inside two weeks, whichever way it goes.</h2>
+    <p>Send me a short description of the symptoms and what you've already tried. If it's a fit I'll confirm the scope and the start date. If it isn't, I'll tell you that instead, before you've spent anything.</p>
+    <div class="cta-row">
+      <a class="btn primary" href="mailto:hello@sebastienvercammen.be">hello@sebastienvercammen.be</a>
+      <!-- n9, 01/08: removed <a class="btn" href="work.html">More about how I work</a>. work.html is
+           kept as an archive of the old homepage; nothing links to it from this page any more.
+           The closing ask is now a single action. -->
+    </div>
+  </div>
+</section>
+
+<footer class="site">
+  <div class="wrap">
+    <span>Sébastien Vercammen · Belgium · remote</span>
+    <span>Root-cause engineering</span>
+  </div>
+</footer>
+
+<div id="lightbox" role="dialog" aria-modal="true" aria-label="Enlarged image"><img alt=""></div>
+
+<script src="assets/js/site.js"></script>
+<script>
+(function(){
+  var lb = document.getElementById('lightbox'), full = lb.querySelector('img');
+  function close(){ lb.classList.remove('on'); full.removeAttribute('src'); }
+  document.querySelectorAll('img.zoomable').forEach(function(img){
+    img.addEventListener('click', function(){
+      full.src = img.currentSrc || img.src;
+      full.alt = img.alt;
+      lb.classList.add('on');
+    });
+  });
+  lb.addEventListener('click', close);
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape') close(); });
+})();
+</script>
+<!-- Author-side review overlay. Self-gating: runs only on file:// and localhost,
+     returns immediately on the public site, so this tag is safe to ship. -->
+<!-- disabled 07/09: feedback widget. <script src="assets/js/feedback.js"></script> -->
+</body>
+</html>

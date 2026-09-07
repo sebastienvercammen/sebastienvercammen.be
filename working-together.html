@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Working together · Sébastien Vercammen</title>
+<meta name="description" content="The details of working with me: availability, how an engagement runs, the terms, and the work behind them.">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;450;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/site.css">
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<style>
+  /* Page-scoped, added 31/07. The game/studio line on the case rows. The home page's equivalent
+     is `.mcase .mplat`, which is scoped to .mcase and so can't be reused inside .slim. Kept
+     smaller and quieter than .mplat on purpose: at .slim's size a 1.35em game name would
+     compete with the .sh headline sitting directly under it. */
+  .slim .sbody .splat{font-family:var(--mono); font-size:11px; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--dim); margin-bottom:5px}
+  .slim .sbody .splat a{color:var(--text); font-weight:600; text-decoration:none;
+    border-bottom:1px solid var(--line-2)}
+  .slim .sbody .splat a:hover{color:var(--accent); border-color:var(--accent)}
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap bar">
+    <div class="id"><a href="index.html">Sébastien Vercammen</a> <span>/ root-cause engineering</span></div>
+    <nav class="top">
+      <a href="for-game-studios.html">The offer</a>
+      <!-- disabled 07/09: work.html. <a href="work.html#work">Work</a> -->
+      <a href="#contact">Contact</a>
+    </nav>
+    <div class="status"><span class="led" aria-hidden="true"></span>Open to new engagements</div>
+  </div>
+</header>
+
+<!-- ============ HEAD ============ -->
+<section class="article-head">
+  <div class="wrap">
+    <p class="kicker">Before our conversation</p>
+    <h1>Working together: the details</h1>
+    <p class="dek">This page has everything worth knowing before we talk: my availability, how an engagement runs, the terms, and the work behind them.</p>
+  </div>
+</section>
+
+<!-- ============ AVAILABILITY ============ -->
+<section>
+  <div class="wrap">
+    <div class="section-head"><h2>Availability</h2></div>
+    <!-- SEB: update the two values below whenever your availability changes. The dated line
+         ("Next engagement can start this week. Last updated 16 July 2026.") was removed on
+         30/07: a date on this stat has to be maintained or it ages into a liability. -->
+    <div class="result-banner">
+      <div class="stat">
+        <div class="k">Current status</div>
+        <div class="v fix">Available now</div>
+      </div>
+      <div class="stat">
+        <div class="k">Capacity</div>
+        <div class="v">One client</div>
+        <div class="sub">One engagement at a time gets the full deep-focus treatment.</div>
+      </div>
+    </div>
+    <!-- Added 30/07: while the status says available, the reader shouldn't have to scroll the
+         whole page to act on it. One action only, because a second button here would compete with it. -->
+    <div class="cta-row" style="margin-top:26px">
+      <a class="btn primary" href="mailto:hello@sebastienvercammen.be">Email me your symptoms</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ HOW AN ENGAGEMENT RUNS ============ -->
+<section class="divider-top">
+  <div class="wrap">
+    <div class="section-head"><h2>How an engagement runs</h2></div>
+    <div class="method-grid">
+      <div class="cell"><div class="n">01</div><h3>You describe the problem</h3><p>A short written description of what's wrong and what you've already tried. I work from the public build your players downloaded, so there's nothing to set up on your side. If it's not a fit, I say so here, at no cost to either of us.</p></div>
+      <div class="cell"><div class="n">02</div><h3>We agree on scope</h3><p>One problem, picked together on a free call before anything is paid. You pick by pain, whichever one is costing you most, and we work out together what that actually covers. The first engagement is €2,500 fixed.</p></div>
+      <div class="cell"><div class="n">03</div><h3>I deliver and prove it</h3><p>A root-cause report inside two weeks: what is causing the defect, the evidence for it, and what it takes to fix it. You see progress in writing throughout, and a before/after anyone can verify on any work that follows.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ THE TERMS ============ -->
+<section class="divider-top">
+  <div class="wrap">
+    <div class="section-head"><h2>The terms, plainly</h2></div>
+    <p class="section-sub">This is the part that usually needs saying twice, so here it is in writing.</p>
+    <div class="result-banner">
+      <div class="stat">
+        <div class="k">What the <span style="color:var(--text)">first engagement</span> costs</div>
+        <div class="v fix">€2,500 fixed</div>
+      </div>
+      <!-- Was: "If the work takes longer than estimated / You don't pay for it / Overrun is my
+           cost, not yours." Wrong model, corrected 30/07. There is no estimate that can be
+           exceeded: the scope is agreed to fit inside two weeks, and the fee is €2,500 for it.
+           Framing it as absorbed overrun imports the open-ended engagement the offer removes.
+           The pair now states the two facts for-game-studios.html states: price and deadline. -->
+      <div class="stat">
+        <div class="k">When the report arrives</div>
+        <div class="v fix">Inside two weeks</div>
+      </div>
+    </div>
+
+    <div class="callout note" style="max-width:76ch; margin-top:30px">
+      <div class="lbl">The report arrives either way</div>
+      <p>If there is a cause to find, you get it: the cause, the evidence chain that proves it, and what it takes to fix it. If there is no cause to find, you get a report of what was done, what was ruled out, how it was measured, and the next steps to take. <strong>Same price, same deadline, and if it's beyond my abilities to diagnose it I'll say so plainly and explain why.</strong></p>
+    </div>
+
+    <div class="cap-cols" style="margin-top:38px">
+      <div>
+        <h4>What you get</h4>
+        <ul class="cap-list">
+          <li><b>A fixed price, agreed before I start</b><span class="d">€2,500 for the first engagement. Anything after it is scoped the same way and quoted as a fixed fee, with milestones and a payment percentage attached to each.</span></li>
+          <li><b>A defined deliverable</b><span class="d">A root-cause report: the cause, the evidence, what it takes to fix it, and roughly what that fix costs. Written so an engineer on your team can start the implementation without me.</span></li>
+          <li><b>Written progress throughout</b><span class="d">Async and written-first. A halfway update at day seven, the report at day fourteen. You can see where the work stands without scheduling a meeting for it.</span></li>
+        </ul>
+      </div>
+      <div>
+        <h4>What I don't do</h4>
+        <ul class="cap-list">
+          <li><b>Hourly work</b><span class="d">No day rates, no hourly billing. I take one defined problem and see it through to a proven result.</span></li>
+          <li><b>Open-ended engagements</b><span class="d">Every engagement is one problem, one price and one deadline, all three settled before it starts.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ WHERE IT STARTS ============
+     Replaces the old "Starting smaller: the audit" section, which offered a €1,000–2,000
+     audit requiring "typically a week of access to the system". Both halves contradicted the
+     settled offer: the price is now one number, and the whole argument of for-game-studios.html
+     is that nothing but the public build changes hands. -->
+<section class="divider-top">
+  <div class="wrap">
+    <div class="section-head"><h2>Where it starts</h2></div>
+    <p class="section-sub" style="max-width:70ch">One problem, <strong style="color:var(--text)">€2,500</strong>, and a root-cause analysis report inside two weeks. All you hand over is the public build, the same download your players have. No source code, no repo access, no engineer's time required to get started.</p>
+    <p class="section-sub" style="max-width:70ch">If the symptom turns out to have more than one cause, you get all of them. The two-week deadline is what bounds the engagement, not the number of causes.</p>
+    <div class="cta-row" style="margin-top:30px">
+      <a class="btn primary" href="for-game-studios.html#offer">The offer in full →</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PROOF ============ -->
+<section class="divider-top">
+  <div class="wrap">
+    <div class="section-head"><h2>The work behind the terms</h2></div>
+    <p class="section-sub">Every one diagnosed from outside the studio, on a retail build, with no source access. Each row jumps to that case on the home page.</p>
+
+    <!-- Replaced the three-cell proofbar on 30/07. It carried three claims; this carries the rest,
+         with the result in front and a route into the full case. Same .slim rows the home page
+         uses at the bottom of its work section. The anchors are ids on index.html, which also
+         carries the scroll-margin rule that stops the sticky header covering the target.
+
+         31/07: every row now names the game and the studio, game linked to its Steam store page,
+         the same treatment .plat gets on for-game-studios.html. Every developer name below was
+         read off Steam's own appdetails API on 31/07/2026, not from memory.
+
+         Two rows went in the same pass. "The optimization that wasn't" was cut outright. "What a
+         frame costs" and "Virtual shadow maps" were one story told twice. The 76% finding IS the
+         shadow work the VSM path was built for, so they are now a single row. It keeps the VSM
+         headline and the real number, and points at #case-gw2-frame-cost because that is the card
+         on the home page where the 76% is actually shown and broken down. -->
+    <div style="margin-top:26px">
+      <article class="slim">
+        <div class="sfig"><span class="ok">◆</span>&nbsp; 4.6 min → 20 s</div>
+        <div class="sbody"><div class="splat"><a href="https://store.steampowered.com/app/252490/Rust/" target="_blank" rel="noopener">Rust</a> · Facepunch Studios</div><div class="sh">Same island, pixel for pixel</div><div class="sd">A closed native world generator reimplemented from outside and graded against the live game until the difference was zero, then forked and made fast.</div></div>
+        <!-- disabled 07/09: work.html. <a class="sgo" href="work.html#case-rust-worldgen">See the case →</a> -->
+      </article>
+      <article class="slim">
+        <div class="sfig"><span class="ok">◆</span>&nbsp; 5–20 → 60+ fps</div>
+        <div class="sbody"><div class="splat"><a href="https://store.steampowered.com/app/2778610/Over_The_Top_WWI/" target="_blank" rel="noopener">Over the Top: WW1</a> · Flying Squirrel Entertainment</div><div class="sh">Every millisecond of a 200-player frame</div><div class="sd">A full per-subsystem frame budget built for a closed binary, and what it found hiding behind a healthy-looking average. Shipped in the studio's Hotfix 1.0117.</div></div>
+        <!-- disabled 07/09: work.html. <a class="sgo" href="work.html#case-ott-frame-budget">See the case →</a> -->
+      </article>
+      <article class="slim">
+        <div class="sfig"><span class="ok">◆</span>&nbsp; crash fixed</div>
+        <div class="sbody"><div class="splat"><a href="https://store.steampowered.com/app/3041230/Windrose/" target="_blank" rel="noopener">Windrose</a> · Kraken Express</div><div class="sh">The startup crash in the runtime</div><div class="sd">A crash that only happened to players, placed below the game in the shipped graphics runtime. Written into the studio's own FAQ, credited by name.</div></div>
+        <!-- disabled 07/09: work.html. <a class="sgo" href="work.html#case-windrose-startup-crash">See the case →</a> -->
+      </article>
+      <article class="slim">
+        <div class="sfig"><span class="ok">◐</span>&nbsp; 0 → 100% spawn</div>
+        <div class="sbody"><div class="splat"><a href="https://store.steampowered.com/app/518790/theHunter_Call_of_the_Wild/" target="_blank" rel="noopener">theHunter: Call of the Wild</a> · Expansive Worlds</div><div class="sh">The ghost species</div><div class="sd">A mission-reward species that appeared for some players and vanished forever for others. Root-caused in a stripped, symbol-less binary, then fixed and shipped.</div></div>
+        <!-- disabled 07/09: work.html. <a class="sgo" href="work.html#case-cotw-ghost-species">See the case →</a> -->
+      </article>
+      <article class="slim">
+        <div class="sfig"><span class="ok">◐</span>&nbsp; +79% fps</div>
+        <div class="sbody"><div class="splat"><a href="https://store.steampowered.com/app/894600/theHunter_Call_of_the_Wild__Vurhonga_Savanna/" target="_blank" rel="noopener">theHunter: COTW, Vurhonga Savanna</a> · Expansive Worlds</div><div class="sh">Why one savanna tanked the frame rate</div><div class="sd">Turning "this map feels laggy" into a measured deficit, then collapsing it onto two detail tiers of one grass mesh. A data-file change, not an engine one.</div></div>
+        <!-- disabled 07/09: work.html. <a class="sgo" href="work.html#case-cotw-savanna">See the case →</a> -->
+      </article>
+      <article class="slim">
+        <div class="sfig"><span class="ok">◐</span>&nbsp; ~99% recovered</div>
+        <div class="sbody"><div class="splat"><a href="https://store.steampowered.com/app/573090/Stormworks_Build_and_Rescue/" target="_blank" rel="noopener">Stormworks: Build and Rescue</a> · Geometa</div><div class="sh">The tick that collapsed</div><div class="sd">One save, one stale physics record, ~50 ms every tick. Fixed three independent ways, a no-op on healthy saves.</div></div>
+        <!-- disabled 07/09: work.html. <a class="sgo" href="work.html#case-stormworks-tick">See the case →</a> -->
+      </article>
+      <article class="slim">
+        <div class="sfig"><span class="ok">◐</span>&nbsp; crash eliminated</div>
+        <div class="sbody"><div class="splat"><a href="https://store.steampowered.com/app/518790/theHunter_Call_of_the_Wild/" target="_blank" rel="noopener">theHunter: Call of the Wild</a> · Expansive Worlds</div><div class="sh">The controller that crashed the game</div><div class="sd">One specific controller crashed the game on launch, every time. Traced to an uninitialized audio object, and to a second crash the obvious fix would have caused.</div></div>
+        <!-- disabled 07/09: work.html. <a class="sgo" href="work.html#case-cotw-controller">See the case →</a> -->
+      </article>
+      <article class="slim">
+        <div class="sfig"><span class="ok">◑</span>&nbsp; 76% redundant</div>
+        <div class="sbody"><div class="splat"><a href="https://store.steampowered.com/app/1284210/Guild_Wars_2/" target="_blank" rel="noopener">Guild Wars 2</a> · ArenaNet</div><div class="sh">Virtual shadow maps for a 14-year-old engine</div><div class="sd">A live per-subsystem frame budget found 76% of the shadow work recomputed identically every frame. The modern shadow path built from that finding is grafted onto the retail client from the outside, and published in progress.</div></div>
+        <!-- disabled 07/09: work.html. <a class="sgo" href="work.html#case-gw2-frame-cost">See the case →</a> -->
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CONTACT ============ -->
+<section id="contact" class="contact divider-top">
+  <div class="wrap">
+    <h2>Ready when you are</h2>
+    <p>Reply to my email, or write to me directly. A short description of the problem and what you've already tried is the best possible start. I'll come back with a scope and a fixed price, or tell you honestly that it's not a fit.</p>
+    <div class="cta-row">
+      <a class="btn primary" href="mailto:hello@sebastienvercammen.be">hello@sebastienvercammen.be</a>
+    </div>
+  </div>
+</section>
+
+<footer class="site">
+  <div class="wrap">
+    <span>Sébastien Vercammen · Belgium · remote</span>
+    <span>Root-cause engineering</span>
+  </div>
+</footer>
+
+<script src="assets/js/site.js"></script>
+<!-- Author-side review overlay. Self-gating: runs only on file:// and localhost,
+     returns immediately on the public site, so this tag is safe to ship. -->
+<!-- disabled 07/09: feedback widget. <script src="assets/js/feedback.js"></script> -->
+</body>
+</html>

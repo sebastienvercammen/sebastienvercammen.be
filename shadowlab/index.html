@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guild Wars 2: Lion's Arch shadows, as a database · Sébastien Vercammen</title>
+<meta name="description" content="One shadow tick from Guild Wars 2, captured from the shipped binary with no source access and published as three queryable tables. DuckDB runs in your browser; every figure on the page is a SQL query you can edit.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;450;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/site.css">
+<link rel="stylesheet" href="vendor/codemirror/codemirror.css">
+<link rel="stylesheet" href="shadowlab.css">
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+</head>
+<body>
+
+<!-- The loader is an overlay, not a gate. The letter, the headings, the limits table and every
+     figure they quote are in the served HTML and read without a line of JavaScript, so "read it
+     while this loads" is a real option rather than a courtesy - which is why the dismiss button
+     is here and not a close X.
+     It covers the page anyway because the interactive half is the reason to be on it, and a
+     reader who scrolls into an empty query panel learns nothing about why it is empty.
+
+     The mark is the atlas: three equal tiles, which is what a 6144x2048 texture holding three
+     2048-square cascades side by side actually looks like. A generic spinner would have said
+     nothing; this one is the subject of the page. -->
+<div class="loader" id="loader" data-state="load">
+  <div class="ld-box">
+    <div class="ld-atlas" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="ld-title" id="ld-title">Loading the frame</div>
+    <!-- A data-fig span rather than a doubled-brace key: this is the one figure on the page that has
+         to read correctly BEFORE figures.json arrives, because it is on screen while figures.json is
+         still in flight. (A brace key here would also be a brace key to figures.py, which scans this
+         file for them - it refused the build over the one that used to be in this comment.) -->
+    <div class="ld-sub" id="ld-sub">DuckDB compiled to WebAssembly, and the <span data-fig="core_mb">1.3</span>&nbsp;MB of tables this article queries. The 3D view's <span data-fig="geom_mb">29.1</span>&nbsp;MB of geometry is fetched separately, when you reach it. Everything is cached after the first visit.</div>
+    <div class="ld-bar" role="progressbar" aria-labelledby="ld-title"><i id="ld-fill"></i></div>
+    <div class="ld-list mono" id="ld-list"></div>
+    <button class="btn" id="ld-skip">Read the article while this loads</button>
+  </div>
+</div>
+
+<header class="site">
+  <div class="wrap bar">
+    <div class="id"><a href="../index.html">Sébastien Vercammen</a> <span>/ root-cause engineering</span></div>
+    <nav class="top">
+      <a href="../index.html#work">Work</a>
+      <a href="../index.html#approach">Approach</a>
+      <a href="../index.html#engage">Engage</a>
+      <a href="../index.html#contact">Contact</a>
+    </nav>
+    <div class="status"><span class="led" aria-hidden="true"></span>Open to select engagements</div>
+  </div>
+</header>
+
+<article>
+<div class="article-head">
+  <div class="wrap narrow">
+    <p class="kicker"><span>Reverse-engineering</span> · <span>Guild Wars 2</span> · <span>D3D11</span></p>
+    <h1>Guild&nbsp;Wars&nbsp;2: Lion's Arch shadows, as a database</h1>
+    <div class="article-meta">
+      <span><b>Studio</b> ArenaNet</span>
+      <span><b>Engine</b> Guild Wars 2 · D3D11</span>
+    </div>
+  </div>
+</div>
+
+<!-- The article's prose is unfinished and is not on the page yet; the data, the queries and the
+     views are. This says so directly under the headline, before anything else, so the page can go
+     out as what it is rather than wait on the writing. -->
+<div class="wrap narrow">
+  <div class="letter">
+    <p>Hey y'all,</p>
+    <p>I was doing some hobby work on Guild&nbsp;Wars&nbsp;2's rendering.</p>
+    <p>With shadows being known for being expensive, I tackled that first. My modded reimplementation work is not ready yet, so in the meantime I figured I would publish some fun/interesting experiments and a small data sandbox for you to enjoy.</p>
+    <p>In my next steps, I hope to complete a mod to replace GW2's CSM with a VSM to bring some performance improvements to shadows.</p>
+    <p>If you found any of this interesting, you have requests/feedback, or you work in the field, don't hesitate to <a href="mailto:hello@sebastienvercammen.be">reach out</a>.</p>
+    <p class="sig">Seb</p>
+  </div>
+</div>
+
+<div class="wrap narrow">
+  <div class="result-banner">
+    <div class="stat"><div class="k">Caster records</div><div class="v" data-live="casters">·</div><div class="sub">in one tick, across <span data-fig="collections">2,001</span> collections</div></div>
+    <div class="stat"><div class="k">Shadow atlas</div><div class="v mono-v"><span data-fig="atlas_w_px">6144</span>×<span data-fig="atlas_h">2,048</span></div><div class="sub">three <span data-fig="texels">2,048</span>² cascades, side by side</div></div>
+    <div class="stat"><div class="k">Rows to query</div><div class="v fix" data-live="rows">·</div><div class="sub">facts · visits · meshes · placements · wireframe · wireframe_instanced</div></div>
+  </div>
+</div>
+
+<div class="prose">
+  <div class="callout note">
+    <div class="lbl">Scope and provenance</div>
+    <p>I do not work for ArenaNet and have no relationship with them. This is independent black-box research on a retail client. The data provided is heuristically approximated and derived from the shadow rendering in Lion's Arch. While the data is representative, none of the data is GW2's actual data.</p>
+  </div>
+
+  <h2>Where the queries run</h2>
+</div>
+
+<div class="wrap">
+  <div class="boot" id="boot" data-state="idle">
+    <div class="boot-head">
+      <span class="boot-led" aria-hidden="true"></span>
+      <span class="boot-title mono" id="boot-title">DuckDB-WASM: starting</span>
+      <button class="btn primary" id="boot-go">Retry</button>
+    </div>
+    <div class="boot-steps" id="boot-steps"></div>
+  </div>
+</div>
+
+<div class="prose">
+  <h2>Lion's Arch's shadows</h2>
+</div>
+
+<div class="wrap">
+  <div class="viewer" id="viewer">
+    <div class="ctl-bar">
+      <div class="v-row">
+        <div class="ctl">
+          <label>Space <span data-info="World draws the frame where GW2 put it, recentred and scaled to fit the same box the cascade view uses. Cascade draws the three shadow maps as three unit cubes in the order they occupy the atlas; looking straight down the light there reproduces the flat atlas panel further down the page, which is the point of offering it."></span></label>
+          <div class="seg" data-seg="vspace">
+            <button data-v="cascade">Cascade</button>
+            <button data-v="world" class="on">World</button>
+          </div>
+        </div>
+        <div class="ctl">
+          <label>Cascades <span data-info="Which of the three shadow maps to include. In world space a caster is one object however many cascades hold it, so it is drawn once and coloured by the nearest cascade still switched on - turning cascade 0 off recolours the objects it was serving rather than deleting them."></span></label>
+          <div class="seg" data-seg="vcasc">
+            <button data-v="0" class="on">0 &#183; nearest</button>
+            <button data-v="1" class="on">1 &#183; middle</button>
+            <button data-v="2" class="on">2 &#183; farthest</button>
+          </div>
+        </div>
+        <div class="ctl">
+          <label>Colour by</label>
+          <div class="seg" data-seg="vmode">
+            <button data-v="cascade" class="on" data-info="Which of the three shadow maps this caster was drawn into. Teal is cascade 0, the small sharp one nearest the camera; blue is 1; amber is 2, the wide blurry one that covers the rest of the view. The three are nested, so anything in 0 is also in 1 and 2, and a caster takes the colour of the nearest cascade still switched on, so turning one off recolours rather than hides."><span class="t">Cascade</span></button>
+            <button data-v="enrol" data-info="Whether a pass actually accepted this caster for drawing, or looked at it and turned it down. Teal is enrolled by at least one pass, {{enrolled}} of the {{visit_rows}} visits this tick; amber is visited and rejected by every pass that saw it, {{not_enrolled}} visits; grey is never visited at all. Enrolment belongs to (caster, pass), not to (caster, cascade), which is why it is a separate table."><span class="t">Enrolment</span></button>
+            <button data-v="clip" data-info="Whether the caster's projected footprint fits on its shadow map or runs off the edge and is cut. Teal fits whole, {{inside}} of the landed projections; amber is clipped, {{clipped}}. A clipped footprint still casts a shadow; the part that fell off the map simply is not in it."><span class="t">Clipped</span></button>
+            <button data-v="tris" data-info="How much geometry the mesh carries, blue through green and yellow to red on a log scale. The ramp is stretched over the 2nd to 98th percentile, {{tri_p2}} to {{tri_p98}} triangles, so the median caster at {{tri_median}} sits mid-ramp; the heaviest in the frame has {{tri_max}} and clamps to red. Casters drawn as boxes have no mesh and no triangle count."><span class="t">Triangles</span></button>
+          </div>
+        </div>
+      </div>
+      <div class="v-row">
+        <div class="ctl">
+          <label>Layers</label>
+          <div class="v-btns">
+            <span id="v-wire-ctl"><button class="btn on" id="v-wire" data-info="The line drawing of every caster this capture could place: silhouette and crease edges only, decimated and baked to world space. With this off, a caster is drawn only if Boxes is on - both off draws nothing."><span class="t">Meshes</span></button><button class="btn" id="v-boxes" data-info="The caster's world bounding box, straight from the fact table, which is all the capture holds for a caster it could not place. With Meshes on, a box is drawn only for a caster that has none, and at a third of the brightness - so a box around a mesh belongs to some other caster. With Meshes off, every caster gets one."><span class="t">Boxes</span></button></span>
+            <button class="btn on" id="v-inst" data-info="The instanced draws of this tick’s cascade atlas: {{inst_objects}} objects of {{inst_slices}} mesh slices, each carrying its own model-to-world. {{inst_multi}} of them are drawn into more than one cascade. Taken straight off the draw call in the same tick as the facts and stamped with the same frame and fit identity, so the pair can be checked rather than assumed. The cascade toggles filter it; the size control does not, having no fact row to read."><span class="t">Instanced</span></button>
+            <button class="btn on" id="v-frames" data-info="In world space, a reference grid at the tenth percentile of caster height. It carries no measurement; it is there so the eye has a horizontal to read the buildings against. In cascade space the same toggle draws the three cascade frames instead."><span class="t">Ground</span></button>
+            <span id="v-sun-ctl"><button class="btn on" id="v-surf" data-info="GW2’s own shadow atlas, unprojected, and the sun that made it. Every other layer here is what the engine was asked to draw; this is what it recorded: the depth in each atlas texel pushed back out through that cascade’s own matrix, {{surf_segments}} segments over the three. Each cascade is a separate sheet at its own resolution: samples land {{surf_step_c0}} units apart on the ground in cascade 0 and {{surf_step_c2}} in cascade 2, the same {{texels}} texels spread over {{ladder_1}} then {{ladder_2}} more ground. Cascade 0 lands on the geometry, within 2 units of median disagreement across the flat roofs wide enough to check it against. All three land on the same ground: the densest height band of each sheet sits at -881, -911 and -903. What the ladder costs is detail rather than position: a 30- or 79-unit sample steps over roofs it cannot land on twice and records the ground between them. The sun rides on the same toggle because it is the same reading: the depth row is identical in all three cascades and depth grows along it, so that is the direction the light travels, {{sun_deg}} degrees above the horizon. The rays are parallel because that is all a directional light is; the glyph is placed for the eye and measures nothing. The cascade toggles filter the sheets; the sun belongs to no single cascade and stays."><span class="t">Sun + Shadow map</span></button></span>
+          </div>
+        </div>
+        <div class="ctl right">
+          <label>Camera</label>
+          <div class="v-btns">
+            <button class="btn" id="v-top" data-info="Puts the camera straight overhead. In cascade space it looks straight down the light instead, which reproduces the flat atlas exactly."><span class="t">Map view</span></button>
+            <button class="btn" id="v-reset" data-info="Returns the camera to the position this view opens at."><span class="t">Reset view</span></button>
+          </div>
+        </div>
+      </div>
+      <div class="v-row">
+        <div class="ctl grow" id="v-depth-ctl" hidden>
+          <label>Depth thickness <span class="mono dim" id="v-depth-lbl">&#215;3</span> <span data-info="Cascade depth spans are mostly under 0.05, so at true scale every cascade box is a sheet. This opens each one around its own midpoint: depth positions and stacking order stay exact, and only the thickness is exaggerated."></span></label>
+          <input type="range" id="v-depth" min="1" max="40" step="1" value="3">
+        </div>
+        <div class="ctl grow">
+          <label>Line strength <span class="mono dim" id="v-dim-lbl">50%</span> <span data-info="How much of a pixel one line covers. It is not a visibility control, since every caster is drawn at every setting. It is how much room overlapping lines have to accumulate before the pixel stops changing. At 50% that happens after five, so any crowd past five casters looks the same as any other; lower it and dense mass reads as brighter than sparse mass, a difference the data has and the screen was throwing away. The cost runs the other way: the lower it goes, the dimmer a lone segment with nothing behind it."></span></label>
+          <input type="range" id="v-dim" min="0" max="100" step="1" value="50">
+        </div>
+        <div class="ctl grow" id="v-size-ctl">
+          <label>Hide casters larger than <span class="mono dim" id="v-size-lbl">5,000 units</span> <span data-info="Hides any caster whose largest world half-extent is over this. A few are the size of the map - a world root, a skybox - and at true scale they are the only thing on screen. They are hidden rather than clipped or shrunk, and the count is stated in the line under the view."></span></label>
+          <input type="range" id="v-size" min="2" max="6" step="0.05" value="3.699">
+        </div>
+      </div>
+    </div>
+    <div class="v-stage" id="v-stage" tabindex="0" role="application" aria-label="3D view of the frame. Click inside it to give it the keyboard, then W A S D or the arrow keys move the camera through the scene, R and F move up and down, hold shift to move faster. Drag to look around, or drag with the right button to orbit the frame."></div>
+    <!-- The two wireframe tables are 22.5 MB and arrive long after the loading overlay is gone.
+         A download the reader cannot see is exactly what that overlay exists to prevent, so they
+         report here instead, in the panel that asked for them. -->
+    <div class="v-load mono" id="v-load" hidden></div>
+    <div class="v-foot">
+      <span class="mono" id="v-count"></span>
+      <span class="v-keys">click inside to move with the keys · <kbd>WASD</kbd> <kbd>ZQSD</kbd>
+        <kbd>←↑↓→</kbd> · <kbd>R</kbd><kbd>F</kbd> move
+        <kbd>↑</kbd><kbd>↓</kbd> · <kbd>shift</kbd> faster · drag to look · right-drag to orbit</span>
+      <span class="mono dim" id="v-fps"></span>
+    </div>
+  </div>
+</div>
+<div class="prose">
+  <h2>The tick, stage by stage</h2>
+</div>
+
+<div class="wrap">
+  <div class="layers" id="layers">
+    <div class="layer-rail" id="layer-rail"></div>
+    <div class="layer-body">
+      <div class="layer-hd">
+        <div class="layer-n mono" id="layer-n">01</div>
+        <div>
+          <h3 id="layer-title">·</h3>
+          <p id="layer-what">·</p>
+        </div>
+      </div>
+      <div class="layer-holds" id="layer-holds"></div>
+      <div class="qbox" data-q="layer"></div>
+      <div class="layer-nav">
+        <button class="btn" id="layer-prev">← previous stage</button>
+        <span class="layer-pos mono" id="layer-pos"></span>
+        <button class="btn primary" id="layer-next">next stage →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="prose">
+  <h2>The atlas, reconstructed from the table</h2>
+</div>
+
+<div class="wrap">
+  <div class="atlas" id="atlas">
+    <div class="ctl-bar">
+      <div class="ctl">
+        <label>Colour by</label>
+        <div class="seg" data-seg="mode">
+          <button data-v="overdraw" class="on">Overlap</button>
+          <button data-v="tris">Triangles</button>
+          <button data-v="depth">Depth</button>
+          <button data-v="area">Area</button>
+          <button data-v="enrol">Enrolment</button>
+        </div>
+      </div>
+      <div class="ctl">
+        <label>Draw</label>
+        <div class="seg" data-seg="fill">
+          <button data-v="fill" class="on">Filled</button>
+          <button data-v="line">Outline</button>
+        </div>
+        <span class="fill-note mono" id="fill-note"></span>
+      </div>
+      <div class="ctl" id="area-ctl" hidden>
+        <label>Area encoding <span class="dim">(candidates, pick one)</span></label>
+        <div class="seg" data-seg="areavar">
+          <button data-v="log" class="on">Log fill</button>
+          <button data-v="rank">Rank fill</button>
+          <button data-v="line">Outline</button>
+          <button data-v="clip">Clipped edge</button>
+        </div>
+      </div>
+      <div class="ctl grow">
+        <label>Reveal in walk order <span class="mono dim" id="atlas-step-lbl"></span></label>
+        <input type="range" id="atlas-step" min="0" max="1000" value="1000">
+      </div>
+      <div class="ctl">
+        <label>&nbsp;</label>
+        <button class="btn" id="atlas-play">▶ Play the walk</button>
+      </div>
+    </div>
+    <div class="atlas-stage">
+      <canvas id="atlas-canvas" width="1536" height="512"></canvas>
+      <div class="atlas-labels"><span>cascade 0 · nearest</span><span>cascade 1 · middle</span><span>cascade 2 · farthest</span></div>
+    </div>
+    <div class="atlas-legend" id="atlas-legend"></div>
+    <div class="qbox" data-q="atlas"></div>
+  </div>
+</div>
+
+<div class="prose">
+  <h2>Distributions</h2>
+</div>
+
+<div class="wrap">
+  <div class="dists" id="dists"></div>
+</div>
+
+<div class="prose">
+  <h2>The data model</h2>
+</div>
+
+<div class="wrap">
+  <div class="erd" id="erd">
+    <div class="ctl-bar">
+      <div class="v-row">
+        <div class="ctl">
+          <label>View</label>
+          <div class="seg" data-seg="erdview">
+            <button data-v="graph" class="on">Diagram</button>
+            <button data-v="cards">Cards</button>
+          </div>
+        </div>
+        <div class="ctl">
+          <label>Joins</label>
+          <div class="v-btns">
+            <button class="btn on k-caster" data-k="caster_uid">caster_uid</button>
+            <button class="btn on k-mesh" data-k="mesh_uid">mesh_uid</button>
+            <button class="btn on k-cascade" data-k="cascade">cascade</button>
+          </div>
+        </div>
+        <div class="ctl grow" id="erd-zoom-ctl">
+          <label>Zoom <span class="mono dim" id="erd-zoom-lbl">100%</span></label>
+          <input type="range" id="erd-zoom" min="30" max="150" step="1" value="100">
+        </div>
+        <div class="ctl right" id="erd-fit-ctl">
+          <label>&nbsp;</label>
+          <div class="v-btns">
+            <button class="btn" id="erd-fit">Fit</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="erd-stage" id="erd-stage">
+      <div class="schema" id="schema"></div>
+    </div>
+    <div class="v-foot">
+      <span class="mono" id="erd-note"></span>
+    </div>
+  </div>
+</div>
+
+<div class="prose">
+  <h2>Ask it something else</h2>
+</div>
+
+<div class="wrap">
+  <div class="console" id="console">
+    <div class="con-hd">
+      <span class="con-lbl mono">Starting points</span>
+      <div class="con-chips" id="con-chips"></div>
+    </div>
+    <div id="con-ed" class="con-ed"></div>
+    <div class="con-bar">
+      <button class="btn primary" id="con-run">Run</button>
+      <span class="con-time mono" id="con-time"></span>
+    </div>
+    <div class="con-out" id="con-out"></div>
+  </div>
+</div>
+
+<div class="prose">
+  <h2 id="limits">What this capture does not contain</h2>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Limit</th><th>Consequence for anything you compute</th></tr></thead>
+    <tbody>
+      <tr><td><b>Footprints are bounding boxes</b></td><td>Every area figure is an upper bound on coverage, never a texel count. The rasterized-texel field is not in this capture and was not estimated. No area figure anywhere on this page is presented as cost.</td></tr>
+      <tr><td><b><span data-fig="pct_no_visit">34.2%</span> of fact rows have no observed visit</b></td><td><span data-fig="rows_no_visit">6,285</span> of <span data-fig="fact_rows">18,384</span> rows have <code>kind_id</code> and <code>material_uid</code> <em>blank</em>, not zero. A query grouping by category is describing the <span data-fig="pct_seen">65.8%</span> that were seen at a visit site, and should say so.</td></tr>
+      <tr><td><b><span data-fig="undecodable">531</span> records had no decodable mesh</b></td><td>They are absent from <code>meshes</code> and counted rather than silently dropped, so every triangle and vertex total is a floor, not a total.</td></tr>
+      <tr><td><b><span data-fig="bind_pose">931</span> placements are in a bind pose</b></td><td>They are positioned by GW2’s own transform, but the mesh drawn for them is the one in the vertex buffer, which is the rest pose rather than the pose this frame holds. <code>wireframe.exact</code> is <code>false</code> for every segment of such a caster, and <code>placements.extent_overflow</code> says by how much the two disagree.</td></tr>
+      <tr><td><b><code>wireframe_instanced</code> has no key to join on</b></td><td><span data-fig="inst_segments">1,150,783</span> segments over <span data-fig="inst_objects">5,710</span> objects of <span data-fig="inst_slices">352</span> mesh slices, taken off the draw call in the same tick as the facts and stamped with the same frame identity. It has no <code>caster_uid</code>, so it cannot be joined to <code>facts</code>, <code>visits</code>, <code>placements</code> or <code>wireframe</code>, and every per-caster figure on this page counts the record-based corpus only. What it does carry is <code>cascade_mask</code>: the atlas is filled by three sequential passes, and <span data-fig="inst_multi">1,637</span> of these objects are submitted to more than one of them (<span data-fig="inst_three">436</span> to all three).</td></tr>
+      <tr><td><b>The category ids have no names</b></td><td><code>kind_label</code> ships empty on purpose. There is a numeric category on each record; I have no proof of what any value means, so it ships as a dense id with no label rather than a guess with one.</td></tr>
+      <tr><td><b>The camera matrix is missing</b></td><td>The capture's camera slot held stale data at commit. It is recorded as missing rather than filled in. Nothing here depends on it: the three cascade matrices, which every footprint is computed from, are present and validated.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="callout withheld">
+    <div class="lbl">Method withheld</div>
+    <p>This page shows what was measured, never how the measurement is taken. It does not describe how the capture attaches to the process, how the shadow tick is located, which structures are read, or any of the hooking, signature-matching or addressing involved. The identifier map that reverses the public ids back to the capture exists, is necessary for my own work, and is not published. The measurement is the publication; the mechanism is not.</p>
+  </div>
+
+  <h2>The transferable part</h2>
+</div>
+
+<div class="wrap narrow">
+  <div class="article-foot">
+    <div class="row">
+      <a class="btn" href="../index.html#work">← All work</a>
+      <a class="btn primary" href="../index.html#contact">Need a black box understood? →</a>
+    </div>
+    <!-- disabled 26/08:
+    <div class="next-list">
+      <a class="case" href="../writing/what-a-frame-costs.html"><div class="platform">Guild Wars 2 · diagnostic</div><h3 style="font-size:19px">What a frame costs</h3></a>
+      <a class="case" href="../writing/virtual-shadow-maps.html"><div class="platform">Guild Wars 2 · build log</div><h3 style="font-size:19px">Virtual shadow maps for a 14-year-old engine</h3></a>
+    </div>
+    -->
+  </div>
+</div>
+</article>
+
+<footer class="site">
+  <div class="wrap">
+    <span>Sébastien Vercammen · Belgium · remote</span>
+    <span>Root-cause engineering</span>
+  </div>
+</footer>
+
+<!-- duckdb-browser.mjs is not a bundle: it imports "apache-arrow" as a bare specifier, which a
+     browser cannot resolve on its own. Arrow is vendored beside it as its own .mjs tree (143 files,
+     635 KB, every internal import relative) and pointed at here. An import map is the no-build-step
+     way to do this; the alternative was adding a bundler to a site that has never needed one. -->
+<script src="vendor/codemirror/codemirror.js"></script>
+<script src="vendor/codemirror/sql-mode.js"></script>
+<script src="vendor/codemirror/matchbrackets.js"></script>
+
+<script type="importmap">
+{ "imports": {
+    "apache-arrow": "./vendor/apache-arrow/Arrow.dom.mjs",
+    "tslib":        "./vendor/tslib/tslib.es6.mjs",
+    "flatbuffers":  "./vendor/flatbuffers/flatbuffers.js",
+    "three":        "./vendor/three/three.module.js"
+} }
+</script>
+<script type="module" src="shadowlab.js"></script>
+</body>
+</html>

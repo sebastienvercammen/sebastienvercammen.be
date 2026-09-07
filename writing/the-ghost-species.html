@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Ghost Species: reverse-engineering a permanent spawning bug · Sébastien Vercammen</title>
+<meta name="description" content="A mission-reward species that vanishes on save. No tools, no symbols, no documentation. One week from first look to full root cause, reproduction, and disclosure in a 90,000-function binary.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;450;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/site.css">
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap bar">
+    <div class="id"><a href="../index.html">Sébastien Vercammen</a> <span>/ root-cause engineering</span></div>
+    <nav class="top">
+      <a href="../index.html#work">Work</a>
+      <a href="../index.html#approach">Approach</a>
+      <a href="../index.html#engage">Engage</a>
+      <a href="../index.html#contact">Contact</a>
+    </nav>
+    <div class="status"><span class="led" aria-hidden="true"></span>Open to select engagements</div>
+  </div>
+</header>
+
+<article>
+<div class="article-head">
+  <div class="wrap narrow">
+    <p class="kicker"><span>Reverse-engineering</span> · <span>theHunter: Call of the Wild</span></p>
+    <h1>The Ghost Species</h1>
+    <p class="dek">A mission-reward species that vanishes on save. No tools, no symbols, no documentation. One week from first look to root cause, reproduction, and disclosure in a binary of ~90,000 functions.</p>
+    <div class="article-meta">
+      <span><b>Studio</b> Expansive Worlds / Avalanche</span>
+      <span><b>Engine</b> Apex · D3D11</span>
+      <span><b>Access</b> shipped binary, no source</span>
+      <span><b>Outcome</b> disclosed · publicly confirmed</span>
+    </div>
+  </div>
+</div>
+
+<div class="wrap narrow">
+  <div class="result-banner" data-reveal>
+    <div class="stat"><div class="k">Reproduction</div><div class="v fix">100%</div><div class="sub">Reliable, end-to-end, every intermediate state captured</div></div>
+    <div class="stat"><div class="k">Disclosure</div><div class="v fix">Confirmed</div><div class="sub">Relayed to QA, reproduced from the report, fix committed</div></div>
+  </div>
+</div>
+
+<div class="prose">
+  <div class="hero-num big"><span>13</span><span class="u">of ~90,000 functions turned out to matter, 0.014% of the code</span></div>
+  <div class="needle" aria-hidden="true"><i></i></div>
+
+  <p>theHunter: Call of the Wild's Scotland DLC unlocks the Wild Haggis after a specific mission. Finish the mission, and haggis should start appearing on the map.</p>
+
+  <p>Players reported otherwise: complete the mission, save, reload, and no haggis. Those who stayed online saw them fine; those who saved and reloaded saw nothing, permanently. The community had documented the pattern but not the cause. That's where I started.</p>
+
+  <h2>Starting from zero</h2>
+  <p>No prior reverse-engineering experience with this engine, and no modding tools at this depth: bottom-up work from a decompiler, an instrumentation framework, and whatever else I had to build. The loop was iterative:</p>
+
+  <pre class="diagram wide"><code>           ╔═══════════════════════╗
+           ║    Static Analysis    ║
+           ║  strings, hashes,     ║
+           ║  structure refs       ║
+           ╚═══════════╤═══════════╝
+                       │
+                       ▼
+           ╔═══════════════════════╗
+           ║  Identify Functions   ║
+           ║  name params, map     ║
+           ║  data flow            ║
+           ╚═══════════╤═══════════╝
+                       │
+                       ▼
+           ╔═══════════════════════╗
+           ║ Dynamic Instrument.   ║
+           ║ hook, log I/O,        ║◀──────────╮
+           ║ observe runtime       ║           │
+           ╚═══════════╤═══════════╝           │
+                       │                       │
+                       ▼                       │
+               Confirmed? ─── No ─── New call  │
+                   │          stacks? Unexpected│
+                  Yes         behaviour?────────╯
+                   │
+                   ▼
+              Next Layer
+              (repeat)
+
+  ×5 days of this before the bug path became clear</code></pre>
+
+  <p>The binary is a 37 MB executable holding 25 MB of code: roughly 90,000 functions, no symbols, no debug information; 133 loaded modules and 6 GB of memory at runtime. Thirteen of those functions turned out to matter. Finding them, and proving they were the right thirteen, was most of the work.</p>
+
+  <pre class="diagram wide"><code>The search space: needle in a haystack
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+  Functions:  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  ~90,000
+  Relevant:   █                                                     13
+              ◀─────── 0.014% of the codebase ───────▶
+
+  5 days: decompiling, hooking, tracing, dead ends, re-reading output.
+  Custom parser built, instrumentation framework written,
+  dozens of functions analysed, most discarded.
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌</code></pre>
+
+  <p>The infrastructure it required (a save-format parser, two runtime patching scripts, a thirteen-hook instrumentation harness with live monitoring) took most of the week. The bug itself came clear in the last two days.</p>
+
+  <h2>Finding the data</h2>
+  <p>First I needed to know what data the game touches and how. I hooked file I/O at runtime, logging every open, read, and write with timestamps and call context:</p>
+
+  <pre class="diagram wide"><code>File I/O trace (excerpt from game startup)
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+  Real filesystem reads:
+    OPEN  settings/config.bin                        ← game settings
+    OPEN  saves/savegame_0                           ← save file (on disk)
+    READ  saves/savegame_0  offset=0x0000  len=4096
+
+  Then something different, repeated reads into large archive files:
+    OPEN  archives/game0.tab                         ← index file
+    OPEN  archives/game0.arc                         ← archive container
+    READ  archives/game0.arc  offset=0x1A3F00  len=32768
+    READ  archives/game0.arc  offset=0x2B8C40  len=16384
+    READ  archives/game0.arc  offset=0x3D1200  len=8192
+    ...hundreds more reads at different offsets into the same archive...
+
+  The game is seeking to specific positions inside .arc files.
+  These aren't sequential reads; it's indexed random access.
+  This is a virtual filesystem.
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌</code></pre>
+
+  <p>The game packs its assets into archive files: a <code>.tab</code> index and an <code>.arc</code> container. Mission definitions, reward configurations, and species parameters all live inside, not as normal files. A parser for the format gave me the mission definition for the haggis unlock, including the reward entry that specifies <em>which species to enable and what hash to write</em>, a concrete anchor to trace through the binary.</p>
+
+  <p>The second source was the save file: a compressed, schema-driven binary format with no existing parser. I built one: the container format, the compression layer, and the schema definitions that describe each data type's layout. Once it could read population data, the save became a window into the game's live state.</p>
+
+  <details>
+    <summary>Save format internals</summary>
+    <p>Each species is stored as a population entry with a fixed-stride record layout:</p>
+    <pre class="diagram"><code>SAnimalPopulationSaveData
+┌─────────────────────────────────────────────────────────────┐
+│ NameHashId          : u32          species identifier        │
+│ Groups              : array        group definitions         │
+│ RepopulateData      : array        template for new groups   │
+│ Revision            : u32          version counter           │
+│ ConditionsFulfilled : array&lt;u32&gt;   hashes gating spawning     │ ◀── the
+└─────────────────────────────────────────────────────────────┘     critical
+                                                                     field</code></pre>
+    <p>The save system uses a generic schema-driven serializer: it doesn't know what ConditionsFulfilled <em>means</em>, it just reads the schema and serializes the field. This becomes relevant later.</p>
+  </details>
+
+  <p>Each population entry carries a field called "conditions fulfilled", a list of hashes. For most species it's empty. For the haggis, after mission completion, it holds a single hash. That was the first thread worth pulling.</p>
+
+  <h2>Tracing the reward</h2>
+  <p>Where does that hash come from? The save told me <em>what</em> was stored, not <em>who</em> writes it. Starting from the population writer, the function that appends to the conditions list, I followed call references upstream through a three-function chain:</p>
+
+  <pre class="diagram"><code>event_handler(event_data)
+  │ reads reward_hash from event payload
+  │
+  └──▶ reward_executor(reward_entry)
+        │ processes cash, XP, unlocks
+        │ reads target species from reward definition
+        │
+        └──▶ population_writer(species, reward_hash)
+              │ dedup check against existing entries
+              │ appends reward_hash to conditions_fulfilled
+              └──▶ mark save dirty</code></pre>
+
+  <p>Direct static calls, no vtable indirection. The mission reward writes one specific hash into the haggis conditions list. But something has to <em>read</em> it.</p>
+
+  <h2>The population pipeline</h2>
+  <p>Tracing outward from the population initializer (decompiling each function, naming its parameters, confirming behaviour with runtime instrumentation where the code was ambiguous), a multi-stage pipeline emerged that every species passes through:</p>
+
+  <pre class="diagram"><code>                      ╔══════════════════╗
+                      ║    Game Load     ║
+                      ╚════════╤═════════╝
+                               ▼
+                      ╔══════════════════╗
+                      ║ Pop. Initializer ║
+                      ╚════════╤═════════╝
+                               ▼
+                      ╔══════════════════╗
+                 ╔════╣   Dispatcher     ╠════╗
+                 ║    ╚══════════════════╝    ║
+          has save data                  fresh species
+                 ║                            ║
+                 ▼                            ▼
+        ╔════════════════╗          ╔════════════════╗
+        ║   Load Path    ║          ║   Fresh Path   ║
+        ║ (load groups   ║          ║ (bypass gate,  ║
+        ║  from save)    ║          ║  use template) ║
+        ╚═══════╤════════╝          ╚════════════════╝
+                ▼                     haggis never
+        ╔════════════════╗            reaches here
+        ║ Memory Cleanup ║
+        ║ (clear+rebuild)║
+        ╚═══════╤════════╝
+                ▼
+        ╔════════════════╗
+        ║ Scheduler Timer║◀═══════════════════╗
+        ╚═══════╤════════╝                    ║
+                │ timer fires                 ║
+                ▼                             ║
+          ╔═══════════╗                       ║
+          ║ Gate Check║                       ║
+          ╚═════╤═════╝                       ║
+           PASS │   │ FAIL                    ║
+                │   └─── skip (no spawning) ══╝
+                ▼
+        ╔════════════════╗
+        ║ Group Creator  ║
+        ║ → Spawner      ║
+        ╚════════════════╝</code></pre>
+
+  <p>The dispatcher routes each species by whether save data exists; a cleanup routine then syncs the in-memory save structures with live state; a per-species scheduler timer gates spawning through a condition check that reads the conditions-fulfilled list. For the haggis, a save entry always exists, even with zero groups, so it always takes the load path. The fresh path, which could bypass the gate, is never reached.</p>
+
+  <details>
+    <summary>The gate check: pseudocode</summary>
+    <pre><code class="language-python">def gate_check(species_data, save_data):
+    gate_entries = species_data.gate_requirements
+
+    if not gate_entries:        # no restrictions for this species
+        return PASS
+
+    for entry in gate_entries:  # haggis has exactly one
+        required = entry.required_condition_hashes
+
+        if not required:        # gate entry with no requirements
+            return PASS
+
+        if all(h in save_data.conditions_fulfilled for h in required):
+            return PASS
+
+    return FAIL                 # no gate entry fully satisfied</code></pre>
+    <p>For haggis, this reduces to:</p>
+    <pre class="diagram"><code>  reward_hash in conditions_fulfilled?
+          │                │
+         YES              NO
+          │                │
+          ▼                ▼
+     gate PASS        gate FAIL
+     → spawn          → skip
+     → haggis         → timer resets
+       appear           → check again in ~61 min
+                        → still empty
+                        → FAIL
+                        → forever</code></pre>
+  </details>
+
+  <p>The reward writes a hash to the conditions list; the gate reads that list to allow spawning. The two values match, proven by the fact that haggis <em>do</em> spawn for players who stay online. The system is designed to work. So where does it break?</p>
+
+  <h2>The destruction point</h2>
+  <p>Instrumenting the cleanup routine answered that. It runs on every load, in two steps: first it frees and zeros the conditions-fulfilled list for every species; then it discards those entries and rebuilds from live zone data, copying groups, repopulation templates, and metadata. It does not copy conditions-fulfilled: zone data never carries that field, so the rebuilt entries are created without it.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Field</th><th>Before</th><th>After cleanup</th></tr></thead>
+    <tbody>
+      <tr><td>NameHashId</td><td>0x7eb7edf9</td><td class="ok">0x7eb7edf9 ✓</td></tr>
+      <tr><td>Groups</td><td>[] (empty)</td><td class="ok">[] (empty) ✓</td></tr>
+      <tr><td>RepopulateData</td><td>1 entry</td><td class="ok">1 entry ✓</td></tr>
+      <tr><td>Revision</td><td>set</td><td class="ok">set ✓</td></tr>
+      <tr><td>ConditionsFulfilled</td><td>[reward_hash]</td><td class="bad">[] ✗ destroyed</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <details>
+    <summary>Cleanup routine: pseudocode</summary>
+    <pre><code class="language-python">def cleanup(population_manager):
+    save_entries = population_manager.save_data
+
+    # Step 1: destroy all conditions data
+    for entry in save_entries:
+        free(entry.conditions_fulfilled)    # release memory
+        entry.conditions_fulfilled = empty  # zero pointers
+
+    # Step 2: reset save vector
+    save_entries.clear()
+
+    # Step 3: rebuild from live state
+    for species in population_manager.zone_data:
+        new_entry = serialize(species)
+        # copies: groups, repopulate_template, metadata
+        # does NOT copy: conditions_fulfilled
+        # (zone_data doesn't carry this field)
+        save_entries.append(new_entry)</code></pre>
+    <p>The rebuild creates entirely new entries from the live game state (zone data). Zone data doesn't carry conditions-fulfilled; that field only exists on save entries. So the new entries are built from a source that never had the field, not from a zeroed value.</p>
+  </details>
+
+  <p>So the reward writes the hash, the save persists it to disk, the deserializer restores it into memory, and cleanup destroys it before the scheduler ever reads it.</p>
+
+  <pre class="diagram wide"><code>The ordering dependency
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  Mission        Save          Reload         Cleanup       Timer fires
+  System         System                       Routine       (scheduler)
+    │              │              │              │              │
+    │──── write ──▶│              │              │              │
+    │  reward hash │              │              │              │
+    │              │              │              │              │
+    │         conditions_fulfilled = [hash]  ✓                 │
+    │              │              │              │              │
+    │              │── save ─────▶│              │              │
+    │              │   to disk    │              │              │
+    │              │              │              │              │
+    │         on disk = [hash]  ✓               │              │
+    │              │              │              │              │
+    │              │      reload ─┤              │              │
+    │              │              │── deserialize │             │
+    │              │              │              │              │
+    │         in memory = [hash]  ✓             │              │
+    │              │              │              │              │
+    │              │              │   ┌──────────┤              │
+    │              │              │   │ clear ALL│              │
+    │              │              │   │ rebuild  │              │
+    │              │              │   │ (omits   │              │
+    │              │              │   │  hash)   │              │
+    │              │              │   └──────────┤              │
+    │              │              │              │              │
+    │         in memory = []  ✗                 │              │
+    │              │              │              │──── read ───▶│
+    │              │              │              │  conditions  │
+    │              │              │       empty list → FAIL     │
+    │              │              │              │              │
+    │              │              │         no spawning. ever.  │
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌</code></pre>
+
+  <h2>Why it's permanent</h2>
+  <p>"Cleanup destroys the hash" explains one failed spawning cycle. Permanence needs no recovery path. Three routes, all blocked:</p>
+
+  <pre class="diagram"><code>Can the hash be restored?
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+  ① Rebuild restores it?       → Field not in rebuild.        BLOCKED
+  ② Counter bypasses gate?     → Flag prevents increment.    BLOCKED
+  ③ Mission re-triggers?       → One-shot. Already fired.    BLOCKED
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+  All recovery paths closed. Damage is permanent.</code></pre>
+
+  <p>The <strong>rebuild</strong> builds from zone data, which never carries the field. The <strong>scheduler</strong> has a skip counter that can bypass the gate for periodic unconditional respawning, but a flag keeps it from ever incrementing for haggis. The <strong>mission</strong> is one-shot; once the reward fires it can never fire again. Every save overwrites the file with the corrupted data; every load runs the same cleanup. The haggis entry sits with zero groups and an empty conditions list, permanently.</p>
+
+  <h2>The timer</h2>
+  <p>Why does the community split so cleanly between "it works" and "it's broken"? The answer was in the scheduler. Each species has its own spawning timer, a base interval plus a randomized jitter:</p>
+
+  <p class="formula">t<sub>spawn</sub> = t<sub>base</sub> + uniform(0, 60) s</p>
+
+  <p>For most species the base interval is short. For the haggis it's the longest of any species in the game:</p>
+
+  <pre class="diagram wide"><code>Spawning timer comparison (base intervals)
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+  Waterfowl       60s  ▓░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+  Bengal Tiger   900s  ▓▓▓▓▓▓▓░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+  EU Rabbit     1800s  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+  Wild Haggis   3600s  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░
+                                                                         ◀▶
+                                                               jitter: 0–60s
+  All timers add uniform(0, 60)s jitter on top of the base.
+  Actual haggis timer: 3600–3660s (60–61 minutes).
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌</code></pre>
+
+  <p>But the timer starts when the reserve loads, as early as the main menu, not when the mission completes. That is the key to the mixed reports:</p>
+
+  <pre class="diagram wide"><code>Timer starts at reserve load, not mission completion
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+  Reserve loads                  Mission complete              Timer fires
+  (main menu or in-game)                                      (gate check)
+  │                              │                             │
+  │◀──── timer already ─────────▶│◀── remaining time ────────▶│
+  │      ticking                 │    = vulnerability window   │
+  │                              │                             │
+  │  Player on menu,             │  save here = permanent bug  │ gate passes
+  │  loading, travelling...      │                             │ haggis spawn
+  │                              │                             │
+  │  Time spent here             │  Time left on timer         │
+  │  REDUCES the window.         │  IS the window.             │
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌</code></pre>
+
+  <p>The player has to stay online, without saving, until the timer fires after completing the mission. Anyone who finished the mission quickly after loading has a large remaining window, and saving inside it destroys the hash on the next load. Players who spent time on the menu, loading, or exploring first often had the timer fire early and avoided the bug; players who rushed triggered it almost every time: a subtle ordering dependency that hits a large fraction of players with no visible pattern.</p>
+
+  <h2>Proving it</h2>
+  <p>Proof meant watching it happen end to end, with every intermediate state captured. I built a reproduction harness: thirteen functions hooked across the population lifecycle, save synchronization, scheduling, and the reward chain, with a monitor loop polling every five seconds. The spawning timer was patched at runtime to compress the 60-minute wait to 30 seconds without touching the binary on disk: same mechanics, only the clock changes. Two phases: capture a save with the hash written and the timer set never to fire, then reload with the timer compressed and all thirteen hooks live. The trace told the story:</p>
+
+  <pre class="diagram wide"><code>[LOAD]            conditions_fulfilled = [reward_hash]  ← deserialized from save
+[CLEANUP]         conditions_fulfilled = [reward_hash]  ← still present
+[CLEANUP fires]   → clear all conditions lists
+[REBUILD]         groups=0, conditions omitted → conditions_fulfilled = []
+[MONITOR  t+5s]   conditions_fulfilled = [], timer = 24.6s
+[MONITOR t+10s]   conditions_fulfilled = [], timer = 19.6s
+  ...
+[MONITOR t+25s]   conditions_fulfilled = [], timer =  4.6s
+[GATE]            check #1 → FAIL (expected reward_hash, found empty list)
+[MONITOR t+30s]   conditions_fulfilled = [], groups = 0, permanent</code></pre>
+
+  <p>Save-file forensics confirmed it from the other side: the data survived to disk with the hash intact, and was destroyed in memory on the next load. The reproduction is 100% reliable.</p>
+
+  <div class="media-slot">
+    <div class="icn">▶</div>
+    <div class="t">Video slot: 30-second live reproduction</div>
+    <div class="s">The monitor loop watching <code>conditions_fulfilled</code> go from <code>[hash]</code> to <code>[]</code> at the cleanup step, then the gate failing, with the timer compressed so it plays in half a minute.</div>
+  </div>
+
+  <h2>Root cause</h2>
+  <p>An implicit ordering dependency between two systems that don't know about each other.</p>
+
+  <pre class="diagram wide"><code>Two systems, one assumption each
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+  Mission Reward System              Save/Load System
+  ─────────────────────              ────────────────────
+  "I write a condition hash.         "I clear and rebuild population
+   The scheduler will consume         data on every load. Everything
+   it on the next tick."              important is in the rebuild."
+         │                                    │
+         └──────── neither accounts for ──────┘
+                   the gap between them
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌</code></pre>
+
+  <p>The condition hash is transient state that bridges mission completion and the next spawning cycle, and the save system treats it as discardable. Complete the cycle before a save/reload and the hash is consumed normally, groups are created. Let a save/reload intervene and the hash is destroyed, and the bridge collapses.</p>
+
+  <h2>The disclosure</h2>
+  <p>The full investigation went to the studio through their official support channel: root cause, reproduction steps, save-file comparisons, plus a second unrelated bug found along the way. They relayed the report to QA, reproduced the issue from it, and publicly confirmed the bug with a committed fix.</p>
+
+  <figure>
+    <img src="../assets/img/proof-haggis-patchnote.webp" alt="Official studio announcement confirming the haggis spawn bug and a committed patch fix" loading="lazy">
+    <figcaption>The studio's official announcement: a public confirmation of the exact bug the investigation diagnosed.</figcaption>
+  </figure>
+
+  <div class="callout note">
+    <div class="lbl">Method withheld</div>
+    <p>This write-up shows the investigation and the proof. It deliberately omits the specifics that would let someone reproduce the tooling: exact function addresses, struct offsets, the hook set, and the save schema. The pattern is the point; the coordinates are mine.</p>
+  </div>
+
+  <h2>The pattern</h2>
+  <p>A specific instance of a general failure mode: state loss across a serialization cycle. Any system that saves and restores state (game saves, database checkpoints, container snapshots, session persistence) can carry it. Transient data that lives between two processing steps gets discarded by a serialize/deserialize cycle that doesn't know the data matters.</p>
+
+  <p>The method transfers too: static analysis for a structural map, dynamic instrumentation to observe real behaviour, targeted reproduction to confirm causality, proof by contradiction to close escape routes. The specific technology is incidental.</p>
+
+  <p>The destruction happens inside a routine whose job is to maintain consistency: not a crash, not a failed write, not a missing null check, but a well-intentioned synchronization step that doesn't account for data it was never told about. Bugs that look correct are the ones that survive shallow investigation.</p>
+</div>
+
+<div class="wrap narrow">
+  <div class="article-foot">
+    <div class="row">
+      <a class="btn" href="../index.html#work">← All work</a>
+      <a class="btn primary" href="../index.html#contact">Have a bug like this? →</a>
+    </div>
+    <div class="next-list">
+      <a class="case" href="the-controller-that-crashed-the-game.html"><div class="platform">theHunter · same engine</div><h3 style="font-size:19px">The controller that crashed the game</h3></a>
+      <a class="case" href="same-island-pixel-for-pixel.html"><div class="platform">Rust · Facepunch</div><h3 style="font-size:19px">Same island, pixel for pixel</h3></a>
+    </div>
+  </div>
+</div>
+</article>
+
+<footer class="site">
+  <div class="wrap">
+    <span>Sébastien Vercammen · Belgium · remote</span>
+    <span>Root-cause engineering</span>
+  </div>
+</footer>
+
+<script src="../assets/vendor/prism.min.js"></script>
+<script src="../assets/js/site.js"></script>
+<!-- disabled 07/09: feedback widget. <script src="../assets/js/feedback.js"></script> -->
+</body>
+</html>

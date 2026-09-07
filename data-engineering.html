@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data engineering · Sébastien Vercammen</title>
+<meta name="description" content="Python technical lead and data engineer. Pipelines, lakehouses and high-performance data processing, with the team leadership around it.">
+<meta property="og:type" content="profile">
+<meta property="og:url" content="https://sebastienvercammen.be/data-engineering.html">
+<meta property="og:title" content="Sébastien Vercammen · Python technical lead, data engineering">
+<meta property="og:description" content="Pipelines, lakehouses and high-performance data processing. Python, dbt, DuckDB, polars, Databricks.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;450;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/site.css">
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<style>
+  /* ============================================================================
+     DATA ENGINEERING. Page-scoped, 07/09/2026.
+
+     The destination of the left door on index.html. It is the CV, not a pitch:
+     somebody who clicked "data engineering" wants to know what I have shipped
+     and for whom, in the order a recruiter reads it. Nothing on this page that
+     is not on the CV.
+
+     Shared classes only, with one exception: the site's accent is the --games
+     teal and this page is the --data blue side of the split, so the three
+     colour hooks the shared sheet only defines against the accent are
+     re-pointed below. No new tokens, no new components.
+     ============================================================================ */
+  .stat .v.data{color:var(--data)}
+  .cap-cols h4{color:var(--data)}
+  .slim .sgo{color:var(--data)}
+
+  /* The role rows carry a company line above the title and a stack line under it.
+     .sd already covers the paragraph of dim text; these two are mono and quieter,
+     so the eye can run the dates and the companies without reading the prose. */
+  .slim .sbody .splat{font-family:var(--mono); font-size:11px; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--dim); margin-bottom:5px}
+  .slim .sbody .splat a{color:var(--text); font-weight:600; text-decoration:none;
+    border-bottom:1px solid var(--line-2)}
+  .slim .sbody .splat a:hover{color:var(--data); border-color:var(--data)}
+  .slim .sbody .sstack{font-family:var(--mono); font-size:12px; color:var(--faint); margin-top:7px}
+
+  /* The lab is the one thing on this page to click, and as a plain .case it read as another
+     block of information. It borrows the door language from index.html, which the reader has
+     just come through: the --data border, a lift and a wash on hover, and a real button at the
+     bottom instead of a line of link text. A nested <a> would be invalid, so the button is a
+     span and the whole card stays the link. The gradient resolves to --ink-2 rather than to
+     transparent because this rule replaces .case's flat background outright. */
+  .lab-card{border-color:var(--data); transition:border-color .2s, transform .2s, background .2s;
+    background:linear-gradient(180deg,rgba(124,168,255,.07),var(--ink-2) 42%)}
+  a.lab-card:hover{border-color:var(--data); transform:translateY(-3px);
+    background:linear-gradient(180deg,rgba(124,168,255,.14),var(--ink-2) 46%)}
+  .lab-card p{margin-top:12px; max-width:70ch; font-size:15.5px; color:var(--dim)}
+  .lab-card .live{display:flex; align-items:center; gap:8px; font-family:var(--mono);
+    font-size:11.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--data);
+    white-space:nowrap}
+  .lab-card .live i{width:7px; height:7px; border-radius:50%; background:var(--data)}
+  .lab-card .fauxbtn{display:inline-flex; align-items:center; gap:10px; margin-top:22px;
+    font-family:var(--mono); font-size:14px; font-weight:600; padding:13px 20px;
+    border-radius:7px; background:var(--data); color:var(--ink)}
+  .lab-card .fauxbtn .arrow{transition:transform .2s}
+  a.lab-card:hover .fauxbtn .arrow{transform:translateX(5px)}
+  @media (prefers-reduced-motion:reduce){
+    a.lab-card:hover{transform:none} .lab-card .fauxbtn .arrow{transition:none}
+  }
+
+  /* Three columns, not the shared sheet's two: the CV's stack splits six ways and
+     forcing that into two makes one column twice the height of the other.
+
+     Six direct children rather than three columns of two, because grid sizes a ROW
+     to its tallest cell: nested two-deep, each column's second heading started
+     wherever its own first paragraph happened to end, and the three of them landed
+     at three different heights. Flat, the second row of headings shares one grid
+     row and lines up. Flow order is row-wise, which puts the pairs back in the
+     column order they were written in. */
+  .skills{grid-template-columns:repeat(3,1fr); gap:32px 34px}
+  .skills h4{margin-bottom:14px}
+  @media (max-width:820px){ .skills{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap bar">
+    <div class="id"><a href="index.html">Sébastien Vercammen</a> <span>/ Ghent, BE</span></div>
+    <nav class="top">
+      <a href="shadowlab/index.html">Shadow lab</a>
+      <a href="#contact">Contact</a>
+    </nav>
+    <div class="status"><span class="led" aria-hidden="true"></span>Available immediately</div>
+  </div>
+</header>
+
+<!-- ============ HEAD ============ -->
+<section class="article-head">
+  <div class="wrap">
+    <p class="kicker data"><span>Python technical lead</span> · <span>Data engineering</span> · <span>Ghent, Belgium</span></p>
+    <h1>Data platforms that hold up in production</h1>
+    <p class="dek">Fourteen years building data platforms for enterprise and public-sector clients, including the National Bank of Belgium, ENGIE and ACA-IT. Hands-on high-performance engineering, plus the team leadership around it.</p>
+    <div class="article-meta">
+      <span><b>Based</b> Ghent, Belgium · remote</span>
+      <span><b>Languages</b> Dutch, English, French</span>
+      <span><b>Available</b> immediately</span>
+    </div>
+
+    <div class="result-banner">
+      <div class="stat">
+        <div class="k">Inherited proof of concept · National Bank of Belgium</div>
+        <div class="v data">3 h → 10 min</div>
+        <div class="sub">A 95% cut. The same 13-dimensional aggregate, a 150–300 billion row cartesian product, on one 4-core VPS with 16 GiB of RAM.</div>
+      </div>
+      <div class="stat">
+        <div class="k">Python practice built at ACA-IT</div>
+        <div class="v data">0 → 8 engineers</div>
+        <div class="sub">Hired, mentored and run as a practice, with the engineering standards, the Agile cadence and the go-to-market demos that fed it.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ THE LAB ============
+     Asked for on 07/09 to sit near the top: the one piece of this work a reader can
+     open and drive themselves rather than take on trust. The capture comes from the
+     games side, but what it demonstrates here is the data engineering: extraction,
+     modelling, a columnar store and a query engine, all of it running client-side. -->
+<section>
+  <div class="wrap">
+    <div class="section-head"><h2>Something you can run</h2></div>
+    <p class="section-sub">Rather than describe a pipeline, here is one you can query. Recent hobby work: a single frame of Guild&nbsp;Wars&nbsp;2's shadow pass, extracted from the shipped binary, modelled into tables, and published with the database itself running in your browser.</p>
+    <div class="cards">
+      <a class="case lab-card" href="shadowlab/index.html">
+        <div class="top">
+          <div>
+            <div class="platform data">Guild Wars 2 · one shadow frame</div>
+            <h3>Lion's Arch shadows, as a database</h3>
+          </div>
+          <span class="live"><i aria-hidden="true"></i>Live · DuckDB-WASM</span>
+        </div>
+        <p>Three tables in a Parquet store, and DuckDB compiled to WebAssembly. Every figure on the page is a SQL query and every query is editable: type over it and the table under it answers. A 3D view of the same frame reads the same rows.</p>
+        <span class="fauxbtn">Open the shadow lab <span class="arrow">→</span></span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ EXPERIENCE ============ -->
+<section class="divider-top">
+  <div class="wrap">
+    <div class="section-head"><h2>Experience</h2></div>
+    <p class="section-sub">Most recent first.</p>
+
+    <div style="margin-top:26px">
+      <article class="slim">
+        <div class="sfig">Feb 2023 – Mar 2026</div>
+        <div class="sbody">
+          <div class="splat"><a href="https://www.nbb.be/" target="_blank" rel="noopener">National Bank of Belgium</a> · Brussels</div>
+          <div class="sh">Python Technical Lead, Data Engineering</div>
+          <div class="sd">Cut an inherited proof of concept by 95%, three hours to ten minutes, aggregating 13 dimensions over a 150–300 billion row cartesian product on a single 4-core VPS using granularity-based partitioning, zero-copy handling and SIMD. Built medallion ETL pipelines on a node-local lakehouse feeding a data warehouse, set the team's standards for code quality, testing, CI/CD and gitflow, and mentored developers one-on-one.</div>
+          <div class="sstack">Python · dbt · DuckDB · polars · pandas · Databricks · SQL Server · Oracle · Azure · FastAPI · Linux</div>
+        </div>
+      </article>
+
+      <article class="slim">
+        <div class="sfig">Jan 2022 – Jan 2023</div>
+        <div class="sbody">
+          <div class="splat"><a href="https://www.aca-it.be/" target="_blank" rel="noopener">ACA-IT</a> · Ghent</div>
+          <div class="sh">Python Technical Lead</div>
+          <div class="sd">Built a Python practice from zero to eight engineers, including the engineering standards and the Agile practice around it. Created tech demos as go-to-market entry points into new industries, and led delivery of client web APIs and an AWS MLOps pipeline for computer vision.</div>
+          <div class="sstack">Python · Django · FastAPI · pydantic · SQLAlchemy · PostgreSQL · Docker · AWS · Azure</div>
+        </div>
+      </article>
+
+      <article class="slim">
+        <div class="sfig">May 2021 – Jan 2022</div>
+        <div class="sbody">
+          <div class="splat">Belgian recruitment industry</div>
+          <div class="sh">Python Engineer, Product Development</div>
+          <div class="sd">Automated the inflow of qualified, self-matched candidates through job-seeker database and ATS integrations, and automated lead generation across 100+ Belgian job marketing sites, delivered straight into the sales pipeline.</div>
+          <div class="sstack">Python · Node.js · PostgreSQL · Elasticsearch · Docker · Prefect · Dask · Grafana</div>
+        </div>
+      </article>
+
+      <article class="slim">
+        <div class="sfig">Apr 2020 – May 2021</div>
+        <div class="sbody">
+          <div class="splat"><a href="https://www.engie.be/" target="_blank" rel="noopener">ENGIE</a> · Brussels</div>
+          <div class="sh">Senior Python Software Engineer</div>
+          <div class="sd">Delivered the international roll-out roadmap for WattsOn, an energy contract management platform, and built its ETL and ELT pipelines with domain-driven referential and exposition layers across CSV, JSON, XML and EDIFACT.</div>
+          <div class="sstack">Python · PostgreSQL · TimescaleDB · pandas · NumPy · Flask · SQLAlchemy · Docker</div>
+        </div>
+      </article>
+
+      <article class="slim">
+        <div class="sfig">Dec 2012 – Apr 2020</div>
+        <div class="sbody">
+          <div class="splat">Various clients · Belgium</div>
+          <div class="sh">Software Engineer</div>
+          <div class="sd">Backend and full-stack delivery for Belgian clients, moving from web applications into data engineering.</div>
+          <div class="sstack">Python · Node.js · PHP · JavaScript · PostgreSQL · MySQL · Docker · Linux</div>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============ OPEN SOURCE ============ -->
+<section class="divider-top">
+  <div class="wrap">
+    <div class="section-head"><h2>Open source &amp; independent engineering</h2></div>
+
+    <div style="margin-top:26px">
+      <article class="slim">
+        <div class="sfig">2024 – present</div>
+        <div class="sbody">
+          <div class="splat">Independent · Ghent</div>
+          <div class="sh">Reverse engineering &amp; performance analysis</div>
+          <div class="sd">Black-box root-cause and performance analysis on shipped, closed-source game engines. Credited fixes acknowledged by the studios concerned.</div>
+        </div>
+        <a class="sgo" href="for-game-studios.html">That side of the work →</a>
+      </article>
+
+      <article class="slim">
+        <div class="sfig">2016 – 2019</div>
+        <div class="sbody">
+          <div class="splat"><a href="https://github.com/RocketMap/RocketMap" target="_blank" rel="noopener">RocketMap</a> · open source</div>
+          <div class="sh">Maintainer &amp; lead contributor</div>
+          <div class="sd">Led the world's largest open-source Pokémon GO project: 2,800 stars, 1,600 forks, 12M monthly visitors. A high-performance GIS platform visualising real-time geospatial data at scale, crowdfunded for three years, with an official Discord partnership and a 35,000-member community.</div>
+          <div class="sstack">Python · Node.js · Go · PHP · JavaScript · MySQL · SQLite · Flask · Docker</div>
+        </div>
+        <a class="sgo" href="https://github.com/RocketMap/RocketMap" target="_blank" rel="noopener">The repository →</a>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============ STACK ============ -->
+<section class="divider-top">
+  <div class="wrap">
+    <div class="section-head"><h2>Stack</h2></div>
+    <div class="cap-cols skills">
+      <div>
+        <h4>Languages</h4>
+        <p class="section-sub">Python, SQL, JavaScript, Node.js, Bash</p>
+      </div>
+      <div>
+        <h4>Platforms &amp; orchestration</h4>
+        <p class="section-sub">Databricks, Azure, AWS, Airflow, Dagster, Prefect</p>
+      </div>
+      <div>
+        <h4>Engineering</h4>
+        <p class="section-sub">Docker, Linux, Git, CI/CD, testing, FastAPI, Flask, Django, Grafana, Prometheus, PowerBI</p>
+      </div>
+      <div>
+        <h4>Data processing</h4>
+        <p class="section-sub">dbt, DuckDB, polars, pandas, PySpark, Dask, Ibis, NumPy, Parquet, Arrow</p>
+      </div>
+      <div>
+        <h4>Databases</h4>
+        <p class="section-sub">SQL Server, PostgreSQL, Oracle, MySQL, MariaDB, SQLite, TimescaleDB, Elasticsearch</p>
+      </div>
+      <div>
+        <h4>Education</h4>
+        <p class="section-sub">Academic Bachelor of Applied Science in Computer Science, Vrije Universiteit Brussel, 2016–2018. Professional Bachelor of Applied Computer Science, Erasmushogeschool Brussel, 2011–2013.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CONTACT ============ -->
+<section id="contact" class="contact divider-top">
+  <div class="wrap">
+    <h2>Get in touch</h2>
+    <p>Send me a short description of what you need and what you've already tried. I'll come back with how I'd approach it. If I'm not the right fit, I'll tell you. Async and written-first works best.</p>
+    <div class="cta-row">
+      <a class="btn primary" href="mailto:hello@sebastienvercammen.be">hello@sebastienvercammen.be</a>
+      <a class="btn" href="https://www.linkedin.com/in/sebastienvercammen" target="_blank" rel="noopener">LinkedIn</a>
+      <a class="btn" href="https://github.com/sebastienvercammen" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</section>
+
+<footer class="site">
+  <div class="wrap">
+    <span>Sébastien Vercammen · Belgium · remote</span>
+    <span>Root-cause engineering</span>
+  </div>
+</footer>
+
+<script src="assets/js/site.js"></script>
+<!-- disabled 07/09: feedback widget. <script src="assets/js/feedback.js"></script> -->
+</body>
+</html>

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The tick that collapsed: one stale record dragging a physics server to a crawl · Sébastien Vercammen</title>
+<meta name="description" content="One saved Stormworks world ran a dedicated server at 10–17 TPS instead of 64, wasting ~50 ms every tick. The cause was a single stale persisted physics-contact record re-cascading each frame. Fixed three independent ways, 10–17 → ~61 TPS.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;450;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/site.css">
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap bar">
+    <div class="id"><a href="../index.html">Sébastien Vercammen</a> <span>/ root-cause engineering</span></div>
+    <nav class="top">
+      <a href="../index.html#work">Work</a>
+      <a href="../index.html#approach">Approach</a>
+      <a href="../index.html#engage">Engage</a>
+      <a href="../index.html#contact">Contact</a>
+    </nav>
+    <div class="status"><span class="led" aria-hidden="true"></span>Open to select engagements</div>
+  </div>
+</header>
+
+<article>
+<div class="article-head">
+  <div class="wrap narrow">
+    <p class="kicker"><span>Reverse-engineering</span> · <span>Stormworks: Build and Rescue</span></p>
+    <h1>The tick that collapsed</h1>
+    <p class="dek">One saved world dragged a dedicated physics server from its nominal 64 ticks per second down to 10–17: about 50 ms wasted on every tick, for everyone connected. Fresh worlds ran full speed. The cause was one leftover record in the saved state, proven three independent ways.</p>
+    <div class="article-meta">
+      <span><b>Game</b> Stormworks: Build and Rescue</span>
+      <span><b>Engine</b> native x86-64 · embedded physics library</span>
+      <span><b>Access</b> shipped binary, no source</span>
+      <span><b>Outcome</b> self-attested · reproduced 3×</span>
+    </div>
+  </div>
+</div>
+
+<div class="wrap narrow">
+  <div class="result-banner" data-reveal>
+    <div class="stat"><div class="k">Tick rate</div><div class="v">10–17 <span style="color:var(--dim);font-size:.6em">→ ~61</span></div><div class="sub">From a crawl back toward the 64 TPS nominal ceiling · holds after the operator detaches</div></div>
+    <div class="stat"><div class="k">Reproduced</div><div class="v fix">3×</div><div class="sub">Three independent fixes converged · no-op on healthy saves</div></div>
+  </div>
+</div>
+
+<div class="prose">
+  <p>Stormworks steps a whole physics simulation forward at a nominal 64 ticks per second, a fixed budget of a little under 16 ms per tick shared by everyone connected. One saved world didn't respect it: loaded on a dedicated server it ran at 10–17 TPS, a quarter to a sixth of nominal, the whole world stepping in slow motion for every player connected.</p>
+
+  <p class="formula">t<sub>budget</sub> = 1000 ms / 64 ticks ≈ 15.6 ms per tick</p>
+
+  <div class="ba-num"><span class="from">10–17</span><span class="arr">→</span><span class="to">~61</span><span class="un">TPS · ~99% recovered against a 64 nominal ceiling</span></div>
+
+  <h2>Fresh vs loaded</h2>
+  <p>A freshly spawned world (same engine, same physics library, same server binary) ran at the full 64 TPS. Only this one saved world crawled. That single contrast places the cost in the saved state a fresh world doesn't carry, not in the build.</p>
+
+  <pre class="diagram"><code>Same binary, same build, two starting points
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+  Fresh spawn   →  64 TPS   ✓ full speed
+  This save     →  10–17 TPS ✗ a crawl
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+  Fresh-vs-loaded isolates STATE bugs from LOGIC bugs.
+  The build isn't the problem. The saved state is.</code></pre>
+
+  <h2>The cost</h2>
+  <p>Against the ~16 ms budget, the crawling world spent roughly 50 ms of extra time on every tick, paid by the server and so by everyone at once. And it recurred on every single tick, indefinitely: a cost that never amortizes is a cost being re-done from scratch each frame.</p>
+
+  <h2>Root cause</h2>
+  <p>A single stale persisted physics-contact record (the kind the physics library normally produces, consumes, and retires within a frame) had been persisted into the save and was re-cascaded every tick. A fresh world doesn't carry it, which is why fresh worlds ran at 64 TPS; this one did, and paid the tax on every tick.</p>
+
+  <div class="callout withheld">
+    <div class="lbl">Method withheld</div>
+    <p>This shows the symptom, the impact, the diagnostic reasoning, and the measured before-and-after, but not the method. How the offending record was located inside a stripped native binary and how it was cleared, the addresses, the probe technique, the dispatch path, and exactly what the fix touches stay private. The measurements are the proof; they are not a recipe.</p>
+  </div>
+
+  <h2>Proof</h2>
+  <p>One before/after proves nothing about cause. I confirmed it by repetition: three independent interventions, each attacking the same diagnosed record by a different route, each measured before and after on the running dedicated server.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Run</th><th>Before</th><th>After</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Intervention 1</td><td class="bad">20.2 TPS</td><td class="ok">60.3 TPS</td><td>Full rate restored</td></tr>
+      <tr><td>Intervention 2</td><td class="bad">15.3 TPS</td><td class="ok">61.6 TPS</td><td>Held 61.83 for 30 s after operator detached</td></tr>
+      <tr><td>Intervention 3</td><td class="bad">24.8 TPS</td><td class="ok">61.5 TPS</td><td>Independent route, same recovery</td></tr>
+      <tr><td>Surgical version</td><td class="bad">30.6 TPS</td><td class="ok">62.07 TPS</td><td>Sustained after detach</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Three independent routes converging on the same recovery (a crawl back to ~61 TPS against a 64 TPS ceiling) is the difference between a diagnosis and a guess.</p>
+
+  <div class="chart">
+    <div class="clab"><span>Tick rate · collapse to recovery</span><span>TPS</span></div>
+    <svg viewBox="0 0 100 40" role="img" aria-label="Tick rate collapsing to about 15 then recovering to about 61 against a 64 nominal ceiling">
+      <line x1="2" y1="6" x2="98" y2="6" class="s-faint" stroke-width="0.4" stroke-dasharray="1.4 1.4"/>
+      <text x="98" y="4.5" font-size="2.6" class="c-faint" text-anchor="end">64 nominal</text>
+      <polyline points="3,32 47,32" fill="none" class="s-symptom" stroke-width="1.4"/>
+      <polyline points="47,32 53,7.6 96,7.6" fill="none" class="s-accent" stroke-width="1.4"/>
+      <circle cx="50" cy="20" r="0" /><line x1="50" y1="6" x2="50" y2="34" class="s-line" stroke-width="0.35" stroke-dasharray="1 1"/>
+      <text x="3" y="37.5" font-size="2.7" class="c-symptom">~15 TPS · a crawl</text>
+      <text x="96" y="37.5" font-size="2.7" class="c-accent" text-anchor="end">~61 TPS · restored</text>
+    </svg>
+    <div class="cnote">Pinned near ~15 TPS while the stale record is reprocessed every frame; a step up at the fix to ~61, held after the operator detaches.</div>
+  </div>
+
+  <p>Two properties matter as much as the recovery. It holds: the tick rate stayed at ~61–62 TPS for 30 seconds after the operator detached, so it isn't a live effect that depends on anything being held open. And the surgical version is a no-op on healthy saves: it touches only the one stale record, leaving any world that doesn't carry it exactly as it was.</p>
+
+  <pre class="diagram"><code>Tick rate, before and after the fix
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+  budget: 64 TPS ceiling ────────────────────────────────▶ │
+  before  ~15 TPS  ▓▓▓▓▓▓▓░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  a crawl
+  after   ~61 TPS  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░  nominal
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+  ~50 ms/tick reclaimed. Recovery holds after the operator detaches.</code></pre>
+
+  <h2>The pattern</h2>
+  <p>A single bad record in persisted state can tax every cycle of a system forever. It doesn't crash, error, or grow; it just sits there being reprocessed. Save games, session stores, replication logs, cache snapshots: anything that persists and reloads working state can carry one.</p>
+
+  <p>Fresh-versus-loaded isolates it: when a fresh instance is fast and a loaded one slow on the identical binary, the cost is in the state, not the logic. Independent reproduction closes it: three separate interventions converging on the same recovery is what turns "it got faster" into "this record was the cause."</p>
+</div>
+
+<div class="wrap narrow">
+  <div class="article-foot">
+    <div class="row">
+      <a class="btn" href="../index.html#work">← All work</a>
+      <a class="btn primary" href="../index.html#contact">Have a bug like this? →</a>
+    </div>
+    <div class="next-list">
+      <a class="case" href="the-optimization-that-wasnt.html"><div class="platform">Performance · diagnostic</div><h3 style="font-size:19px">The optimization that wasn't</h3></a>
+      <a class="case" href="same-island-pixel-for-pixel.html"><div class="platform">Rust · Facepunch</div><h3 style="font-size:19px">Same island, pixel for pixel</h3></a>
+    </div>
+  </div>
+</div>
+</article>
+
+<footer class="site">
+  <div class="wrap">
+    <span>Sébastien Vercammen · Belgium · remote</span>
+    <span>Root-cause engineering</span>
+  </div>
+</footer>
+
+<script src="../assets/vendor/prism.min.js"></script>
+<script src="../assets/js/site.js"></script>
+<!-- disabled 07/09: feedback widget. <script src="../assets/js/feedback.js"></script> -->
+</body>
+</html>

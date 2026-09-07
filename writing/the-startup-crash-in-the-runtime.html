@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The startup crash in the runtime: a crash the studio couldn't reproduce · Sébastien Vercammen</title>
+<meta name="description" content="A slice of Windrose players hard-crashed before the main menu, and it never reproduced on the team's own machines. Root-caused below the game, in the shipped DirectX 12 runtime. The studio adopted the fix into their official docs and credited me by name.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;450;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/site.css">
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap bar">
+    <div class="id"><a href="../index.html">Sébastien Vercammen</a> <span>/ root-cause engineering</span></div>
+    <nav class="top">
+      <a href="../index.html#work">Work</a>
+      <a href="../index.html#approach">Approach</a>
+      <a href="../index.html#engage">Engage</a>
+      <a href="../index.html#contact">Contact</a>
+    </nav>
+    <div class="status"><span class="led" aria-hidden="true"></span>Open to select engagements</div>
+  </div>
+</header>
+
+<article>
+<div class="article-head">
+  <div class="wrap narrow">
+    <p class="kicker"><span>Reverse-engineering</span> · <span>Windrose</span></p>
+    <h1>The startup crash in the runtime</h1>
+    <p class="dek">A slice of Windrose players hard-crashed before the main menu, and the crash never once reproduced on the team's own machines. The fault sat below the game, in the shipped DirectX 12 runtime. The studio adopted the fix into their official docs and credited me by name.</p>
+    <div class="article-meta">
+      <span><b>Game</b> Windrose · playwindrose.com</span>
+      <span><b>Engine</b> Unreal Engine 5 · D3D12</span>
+      <span><b>Access</b> shipped build, no source</span>
+      <span><b>Outcome</b> fixed · publicly credited by name</span>
+    </div>
+  </div>
+</div>
+
+<div class="wrap narrow">
+  <div class="quote-hero"><q>D3D12Core.dll update … huge kudos to our friend @Seb for figuring this one out! ❤️</q><span class="src">Windrose team · official FAQ / Dedicated Server Guide</span></div>
+</div>
+
+<div class="prose">
+  <p>Windrose is a custom Unreal Engine 5 build on D3D12. A slice of players hard-crashed on startup, before the menu drew a single frame, and the crash never reproduced on any developer workstation, QA box, or configuration the studio could point at.</p>
+
+  <p>That property is the clue. A crash that depends on <em>whose machine</em> it runs on, not on <em>which build</em>, isn't in the game's logic; the logic is identical for everyone. The fault was below the game, in the layer it starts on top of.</p>
+
+  <h2>Below the game</h2>
+  <p>A D3D12 title hands rendering to the DirectX 12 runtime that ships alongside it and loads on every player's machine: code the studio doesn't write or compile, versioned independently of the game.</p>
+
+  <p>The crash root-caused there: environment-sensitive exactly as the field reports described, invariant to the game build. With the corrected <code>D3D12Core.dll</code> in place, the affected machines boot to the menu normally: same build, same players, no crash. The fix is a runtime update, not a game patch.</p>
+
+  <figure>
+    <img src="../assets/img/proof-windrose-credit.webp" alt="Windrose's official FAQ crediting Seb for the startup-crash runtime fix" loading="lazy">
+    <figcaption>Public credit, by name, in the studio's own documentation.</figcaption>
+  </figure>
+
+  <div class="callout withheld">
+    <div class="lbl">Method withheld</div>
+    <p>This shows the symptom, the reasoning that placed the fault below the game, and the fix the studio shipped. It omits <em>how</em> the crash was cornered on machines where it refused to reproduce, the instrumentation that isolated it to the runtime, and what in the environment triggered it. The public credit is the proof; it is not a reproduction guide.</p>
+  </div>
+
+  <p>The proof isn't my own reproduction or a self-graded check. The people who own the game confirmed the diagnosis publicly, by name, and shipped it to their players.</p>
+
+  <h2>Second front: frame hitches</h2>
+  <p>The same engine had a separate problem. In dense scenes the frame time spiked: sporadic stalls in the multiple-hundred-millisecond range, each a visible hitch.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Frametime capture</th><th>Value</th></tr></thead>
+    <tbody>
+      <tr><td>Hitches recorded</td><td>231 over 616.2 s</td></tr>
+      <tr><td>Median frame</td><td class="ok">8.32 ms</td></tr>
+      <tr><td>p99 frame</td><td class="ok">10.61 ms</td></tr>
+      <tr><td>Worst single hitch</td><td class="bad">1,100.45 ms</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Median and p99 are fine; the game runs smooth almost all the time. The damage is entirely in the tail: a worst single hitch over a full second, plus a recurring cluster of 263–289 ms hitches at roughly 20 per minute. Averages hide it. The obvious suspects each had to be ruled out, in order:</p>
+
+  <pre class="diagram wide"><code>What is stalling the frame? Ruling out the obvious, in order
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+  ① Display / present-bound?   → No. Not waiting on the swapchain.
+                                 The hitch isn't the frame being held
+                                 back at present time.
+  ② GPU-bound?                 → No. The GPU wasn't saturated during
+                                 the stall; it had headroom.
+  ③ Render thread BUSY?        → No. The render thread wasn't doing
+                                 too much work; it was BLOCKED.
+                                 Not busy. Stopped, waiting.
+  ④ Where does it fan out?     → From a single blocked point. The
+                                 stall doesn't smear across the frame;
+                                 it radiates from one call that waits.
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+  Root cause: the graphics runtime compiling a shader pipeline
+  synchronously, the first time a new material variant is seen.
+  Worst single such compile: 122 ms, on the frame it happens.</code></pre>
+
+  <p>Step ③ is the whole diagnosis: a <em>busy</em> render thread is a workload problem you cut; a <em>blocked</em> one is a stall, waiting on something else. Here it was blocked, waiting on the runtime compiling a shader pipeline on demand, the first time a material variant appears, paid once, cheap forever after. That is why the hitches cluster when the scene churns through fresh material. The scene was not small:</p>
+
+  <pre class="diagram"><code>The haystack: one dense scene
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+  Static-mesh components   239,597
+  Particle-system objects   20,304
+  Engine objects, total       622K
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌</code></pre>
+
+  <p>To confirm density was the driver, I measured a dense scene against an empty one:</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Measurement</th><th>Dense scene</th><th>Empty scene</th></tr></thead>
+    <tbody>
+      <tr><td>Mean frame time</td><td class="bad">9.98 ms</td><td class="ok">8.35 ms</td></tr>
+      <tr><td>Frame rate</td><td class="bad">100.2 fps</td><td class="ok">119.8 fps</td></tr>
+      <tr><td>Indexed draws</td><td class="bad">2.16× higher</td><td class="ok">baseline</td></tr>
+      <tr><td>Render-target changes</td><td class="bad">2.07× higher</td><td class="ok">baseline</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>The dense scene carries roughly twice the draw and render-target churn, precisely what surfaces new material variants for the runtime to compile. More variety on screen means more first-sightings, means more synchronous compiles, means more tail.</p>
+
+  <div class="media-slot">
+    <div class="icn">◱</div>
+    <div class="t">Plot slot: frametime timeline</div>
+    <div class="s">The full 616.2 s capture as a frametime trace: a flat ~8 ms baseline with the tail spikes annotated: the lone 1,100 ms stall and the recurring 263–289 ms cluster standing out against an otherwise smooth line. Generated from the already-logged capture data.</div>
+  </div>
+
+  <h2>The pattern</h2>
+  <p>Both fronts had their real cause below the game's own code, in the shipped graphics runtime. The crash never reproduced in-house because the fault wasn't in the build; the hitch survived every workload cut because the render thread wasn't busy, it was blocked. The answer appeared only once the investigation followed the failure past the game's boundary into the runtime it depends on, and proved it well enough that the people who own the software shipped the fix and put their name next to mine.</p>
+</div>
+
+<div class="wrap narrow">
+  <div class="article-foot">
+    <div class="row">
+      <a class="btn" href="../index.html#work">← All work</a>
+      <a class="btn primary" href="../index.html#contact">Crash you can't reproduce? →</a>
+    </div>
+    <div class="next-list">
+      <a class="case" href="same-island-pixel-for-pixel.html"><div class="platform">Rust · Facepunch</div><h3 style="font-size:19px">Same island, pixel for pixel</h3></a>
+      <a class="case" href="every-millisecond-of-a-200-player-frame.html"><div class="platform">Performance · frame budget</div><h3 style="font-size:19px">Every millisecond of a 200-player frame</h3></a>
+    </div>
+  </div>
+</div>
+</article>
+
+<footer class="site">
+  <div class="wrap">
+    <span>Sébastien Vercammen · Belgium · remote</span>
+    <span>Root-cause engineering</span>
+  </div>
+</footer>
+
+<script src="../assets/vendor/prism.min.js"></script>
+<script src="../assets/js/site.js"></script>
+<!-- disabled 07/09: feedback widget. <script src="../assets/js/feedback.js"></script> -->
+</body>
+</html>

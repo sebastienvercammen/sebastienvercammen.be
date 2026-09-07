@@ -1,0 +1,546 @@
+/* ============================================================
+   shadowlab — page-scoped styles for the GW2 shadow-frame decomposition.
+
+   Everything here sits on top of the shared design system in site.css and
+   borrows its tokens; nothing in this file redefines a token or touches a
+   shared class. Same constraints as the rest of the site: no external runtime,
+   no shadows, no blurs, no filters, nothing that repaints on scroll.
+
+   The one structural difference from an article page is that these panels are
+   WIDER than .prose. A result table with nine columns and a canvas of an atlas
+   do not belong in a 720px reading column, so the interactive blocks live in
+   .wrap (1080px) and the prose keeps the narrow measure between them.
+   ============================================================ */
+
+.dim{color:var(--dim)}
+.mono-v{font-family:var(--mono); font-size:.62em; letter-spacing:-.01em}
+
+/* ---- the letter ---------------------------------------------------------
+   A note from me, at the top, saying the writing is unfinished while the thing
+   itself is not. It has to read as a different register from the article - a
+   person talking, not a page - so it is the one block on the site set in a
+   serif italic.
+
+   Georgia rather than a webfont: the three families this page already loads
+   (Space Grotesk, Inter, IBM Plex Mono) ship no italic axis, so asking any of
+   them for italics gets a synthetic slant, which is exactly the mechanical
+   look this block is trying not to have. Georgia has a drawn italic, is on
+   every machine that will open this, and costs no request.
+
+   The rest is the sheet it is written on: a ruled grid, a margin line down the
+   left, warm paper and cream ink instead of the cool ink-2 and grey every other
+   panel here uses. All of it is background-image on one element - no shadow, no
+   blur, no filter, nothing extra fetched, same house rules as the rest of this
+   file.
+
+   The rules are the reason line-height is 30px rather than a ratio, and the
+   reason paragraph and sign-off spacing are 30 and 60: text on ruled paper sits
+   ON the rules, and a 15px gap anywhere would put every line after it into the
+   space between two of them. Anything that changes the type size here has to
+   move the 30 with it. The rules take their phase from the content box, so the
+   top padding is what puts the first line on the first rule. */
+/* Directly under the masthead, which already ends in 34px and a rule. */
+.letter{--paper:#201E1A; --rule:rgba(240,232,216,.05); --mx:44px;
+  margin:34px auto 0; border:1px solid rgba(240,224,200,.07); border-radius:10px;
+  padding:30px 34px 30px calc(var(--mx) + 15px);
+  font-family:Georgia,'Iowan Old Style','Times New Roman',serif; font-style:italic;
+  font-size:17.5px; line-height:30px; color:#DFD9CD;
+  background-color:var(--paper);
+  background-image:linear-gradient(to bottom, transparent 0 29px, var(--rule) 29px 30px),
+    linear-gradient(to right, transparent 0 calc(var(--mx) - 1px),
+      rgba(216,96,76,.58) calc(var(--mx) - 1px) var(--mx), transparent var(--mx));
+  background-origin:content-box, border-box;
+  /* content-box for the rules: clipped to the written area, they read as lines to
+     write on. Run them out to the border like the margin line and they meet it at
+     right angles, and the whole thing turns into a table. */
+  background-clip:content-box, border-box;
+  background-size:100% 30px, 100% 100%;
+  background-repeat:repeat, no-repeat}
+.letter p{margin:0 0 30px; max-width:62ch}
+.letter p:last-child{margin-bottom:0}
+.letter a{color:var(--accent); border-bottom:1px solid var(--accent-soft)}
+.letter a:hover{border-bottom-color:var(--accent)}
+/* Two blank rules before the sign-off, the way you leave room to sign. 60 rather
+   than 30 because it collapses against the previous paragraph's 30. */
+.letter .sig{margin-top:60px; font-size:19px; color:#EFE9DC}
+/* The margin line and its gutter, halved, so the text keeps a usable measure on
+   a phone instead of writing in a column beside a wide left border. */
+@media (max-width:520px){.letter{--mx:24px; padding:30px 20px 30px calc(var(--mx) + 13px)}}
+
+kbd{font-family:var(--mono); font-size:.85em; border:1px solid var(--line-2);
+  border-bottom-width:2px; border-radius:4px; padding:1px 5px; color:var(--text)}
+
+/* ---- loading overlay ----------------------------------------------------
+   Same house rules as everything else here: no shadow, no blur, no filter. The
+   panel is opaque --ink-2 on an opaque --ink sheet, so it reads as a surface
+   without any of the three.
+
+   Two things move, both of them information. The bar is the byte total across
+   every asset, and the atlas tiles sweep to say the page is alive while a
+   16 MB parquet streams with nothing else to show. Under reduced-motion the
+   sweep stops and the tiles sit lit; the bar still fills, because a progress
+   bar reporting progress is not a motion effect.
+
+   The list below is per-asset because the assets load CONCURRENTLY and finish
+   out of order - one aggregate bar would be the only honest thing to show if
+   they were serial, and it would hide which of the eight tables is the slow
+   one. Lines are appended as loads start, so the list is also the record of
+   what this page fetches. */
+.loader{position:fixed; inset:0; z-index:60; background:var(--ink);
+  display:flex; align-items:center; justify-content:center; padding:24px;
+  overflow:auto; opacity:1; transition:opacity .45s ease}
+.loader[data-state="done"]{opacity:0; pointer-events:none}
+.loader[hidden]{display:none}
+.ld-box{width:100%; max-width:560px; border:1px solid var(--line-2); border-radius:12px;
+  background:var(--ink-2); padding:26px 26px 22px; text-align:center; margin:auto}
+
+.ld-atlas{display:flex; gap:5px; justify-content:center; margin-bottom:20px}
+.ld-atlas i{width:44px; height:44px; border:1px solid var(--line-3); border-radius:3px;
+  background:var(--ink-4); animation:ld-sweep 1.5s ease-in-out infinite}
+.ld-atlas i:nth-child(2){animation-delay:.18s}
+.ld-atlas i:nth-child(3){animation-delay:.36s}
+@keyframes ld-sweep{0%,70%,100%{background:var(--ink-4)} 30%{background:var(--accent-soft)}}
+.loader[data-state="fail"] .ld-atlas i{animation:none; background:rgba(224,87,74,.16)}
+
+.ld-title{font-family:var(--display); font-size:20px; color:var(--text); margin-bottom:8px}
+.loader[data-state="fail"] .ld-title{color:#E0574A}
+.ld-sub{font-size:13.5px; color:var(--faint); line-height:1.55; margin-bottom:18px}
+
+.ld-bar{height:4px; border-radius:2px; background:var(--ink-4); overflow:hidden}
+.ld-bar i{display:block; height:100%; width:0; background:var(--accent); transition:width .25s ease}
+.loader[data-state="fail"] .ld-bar i{background:#E0574A}
+
+.ld-list{margin:18px 0 20px; font-size:12px; text-align:left; max-height:44vh; overflow:auto}
+.ld-list div{display:flex; gap:10px; padding:3px 0; color:var(--faint);
+  border-bottom:1px solid var(--line)}
+.ld-list div:last-child{border-bottom:0}
+.ld-list div.done{color:var(--dim)}
+.ld-list div.done .ld-mark{color:var(--accent)}
+.ld-list div.fail{color:#E0574A}
+.ld-mark{width:18px; flex:none}
+.ld-l{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.ld-t{margin-left:auto; flex:none; color:var(--faint); font-variant-numeric:tabular-nums}
+
+@media (prefers-reduced-motion:reduce){
+  .loader{transition:none}
+  .ld-atlas i{animation:none; background:var(--accent-soft)}
+  .ld-bar i{transition:none}
+}
+@media (max-width:520px){
+  .ld-atlas i{width:34px; height:34px}
+  .ld-box{padding:20px 16px 16px}
+}
+
+/* The deferred-geometry strip under the 3D stage. Same row markup as the overlay's list, so the
+   OK/loading idiom a reader already learned at the top of the page still means the same thing. */
+.v-load{border-top:1px solid var(--line); padding:6px 14px; font-size:12px}
+.v-load div{display:flex; gap:10px; padding:2px 0; color:var(--faint)}
+.v-load div.done{color:var(--dim)}
+.v-load div.done .ld-mark{color:var(--accent)}
+.v-load div.fail{color:#E0574A}
+
+/* ---- boot panel ---------------------------------------------------------
+   36 MB of WebAssembly is not something to start behind the reader's back, so
+   the panel is a deliberate control rather than a spinner that appears on load.
+   Its four states are carried on data-state and drive only colour: idle, load,
+   ready, fail. Nothing moves except the LED. */
+.boot{border:1px solid var(--line-2); border-radius:12px; background:var(--ink-2);
+  padding:20px 22px; margin:8px 0 44px}
+.boot-head{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+.boot-title{font-size:14px; color:var(--dim); flex:1; min-width:220px}
+.boot-head .btn{margin-left:auto}
+.boot-led{width:9px; height:9px; border-radius:50%; background:var(--faint); flex:none}
+.boot[data-state="load"] .boot-led{background:var(--symptom); animation:blink 1s steps(2,end) infinite}
+.boot[data-state="ready"] .boot-led{background:var(--accent)}
+.boot[data-state="fail"] .boot-led{background:#E0574A}
+.boot[data-state="ready"] .boot-title{color:var(--accent)}
+.boot[data-state="fail"] .boot-title{color:#E0574A}
+.boot[data-state="ready"] #boot-go,.boot[data-state="load"] #boot-go{display:none}
+@keyframes blink{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.boot-led{animation:none !important}}
+
+.boot-steps{display:none; margin-top:16px; font-family:var(--mono); font-size:12.5px}
+.boot[data-state="load"] .boot-steps,.boot[data-state="ready"] .boot-steps,
+.boot[data-state="fail"] .boot-steps{display:block}
+.boot-steps div{display:flex; gap:10px; padding:3px 0; color:var(--faint)}
+.boot-steps div.done{color:var(--dim)}
+.boot-steps div.done .bs-mark{color:var(--accent)}
+.boot-steps div.fail{color:#E0574A}
+.bs-mark{width:14px; flex:none}
+.bs-t{margin-left:auto; color:var(--faint)}
+.boot-note{margin-top:14px; font-size:13.5px; color:var(--faint); line-height:1.55}
+
+/* ---- figures --------------------------------------------------------------
+   Every data-derived number in the prose is a data-fig span, filled from data/figures.json and
+   carrying the SQL that produced it as its tooltip. The underline is the affordance that says so:
+   these numbers came from somewhere you can go and look. */
+[data-fig]{border-bottom:1px dotted rgba(79,214,188,.42); cursor:help}
+[data-fig]:hover{border-bottom-color:var(--accent); color:var(--accent)}
+/* Held: measured during the capture build, not recomputable from the shipped tables. Marked
+   differently because the reader cannot check it, and that difference is the point. */
+[data-fig].fig-held{border-bottom-style:dashed}
+[data-fig].fig-held:hover{border-bottom-color:var(--faint); color:var(--faint)}
+/* Drift: the browser re-ran this figure's query and got something else. Loud on purpose - a wrong
+   number that looks like a right one is the failure this whole mechanism exists to prevent. */
+[data-fig].fig-drift{color:#FF6B6B; border-bottom:1px solid #FF6B6B}
+.fig-check{margin-top:14px; padding-top:12px; border-top:1px solid var(--line);
+  font-size:13px; color:var(--faint); line-height:1.55}
+.fig-check.bad{color:#FF6B6B}
+
+/* ---- schema cards -------------------------------------------------------
+   Grain is the thing a reader has to hold in their head to write a correct
+   query against this data, so it gets its own line in a fixed slot on every
+   card rather than being buried in the column list. */
+.schema{display:grid; grid-template-columns:repeat(3,1fr); gap:16px}
+@media (max-width:860px){.schema{grid-template-columns:1fr}}
+
+/* Diagram mode is the SAME cards under a transform, not a second rendering - so everything above
+   still applies and only position, width and state are added here. */
+.erd{border:1px solid var(--line); border-radius:12px; background:var(--ink-2); margin-bottom:44px}
+.erd .ctl-bar{display:block; padding:0 18px}
+/* Tall enough that the width is what Fit is bound by. The middle column carries three cards, so at
+   680px the height bound it instead and Fit shrank to 76%. Not raised any further than this: the
+   panel already fills a laptop viewport, so the world outgrowing it again costs a few percent of
+   Fit rather than another 100px of page. Anything that adds a line to a card in the middle column
+   moves that number. */
+.erd-stage{position:relative; height:820px; overflow:hidden; cursor:grab;
+  border-top:1px solid var(--line); touch-action:none}
+.erd-stage.grabbing{cursor:grabbing}
+.erd-stage.flat{height:auto; overflow:visible; cursor:auto; padding:18px; touch-action:auto}
+.schema.graph{display:block; position:absolute; top:0; left:0; width:1130px; transform-origin:0 0}
+.schema.graph .schema-card{position:absolute; width:230px; background:var(--ink-3)}
+/* A node is a table name, its grain, its size and its columns. The per-column notes and the long
+   count breakdown are what Cards is for - carried into the diagram they wrapped every box to twice
+   the height of the panel, and a diagram that has to be shrunk to 60% to fit is one nobody reads. */
+.schema.graph .schema-card ul i, .schema.graph .schema-card .n span{display:none}
+.schema.graph .schema-card.on{border-color:var(--accent)}
+.schema.graph .schema-card.far{opacity:.28}
+/* Cards is a grid of boxes, not a diagram. The edges are positioned in the diagram's coordinates,
+   so left drawn they are lines struck across the grid at unrelated angles. */
+.schema:not(.graph) .erd-edges{display:none}
+.erd-edges{position:absolute; top:0; left:0; overflow:visible; pointer-events:none}
+/* Selected by element, not by the shared colour class: a path and its label want the same colour
+   in different properties, and one .k-caster rule setting both filled every curve in solid teal. */
+.erd-edges path{fill:none; stroke-width:1.6px; opacity:.5}
+.erd-edges path.on{opacity:1; stroke-width:2.4px}
+.erd-edges path.off{opacity:.1}
+/* The one link that is not a join. Dashed and neutral: it belongs to none of the three keys, so it
+   must not borrow a key's colour either. */
+.erd-edges path.bit{stroke-dasharray:5 5}
+.erd-edges path.k-none{stroke:var(--dim)}
+.erd-edges text.k-none{fill:var(--dim)}
+/* The halo is what makes a label readable where it cannot be placed clear of its own line. Some
+   gutters are narrower than the label that has to sit in them, so the offset alone cannot always
+   win. paint-order puts this stroke UNDER the glyphs; it is a stroke, not a filter or a shadow. */
+.erd-edges text{font-family:var(--mono); font-size:11px; text-anchor:middle;
+  paint-order:stroke; stroke:var(--ink-2); stroke-width:3.5px; stroke-linejoin:round}
+.erd-edges path.k-caster{stroke:var(--accent)}
+.erd-edges path.k-mesh{stroke:var(--data)}
+.erd-edges path.k-cascade{stroke:var(--symptom)}
+.erd-edges text.k-caster{fill:var(--accent)}
+.erd-edges text.k-mesh{fill:var(--data)}
+.erd-edges text.k-cascade{fill:var(--symptom)}
+/* A join key is one colour wherever it appears: on the line, on the column in the card, and on the
+   button that switches it off. */
+.schema-card b .k-caster{color:var(--accent)}
+.schema-card b .k-mesh{color:var(--data)}
+.schema-card b .k-cascade{color:var(--symptom)}
+.erd [data-k]{font-family:var(--mono)}
+.erd .k-caster.on{color:var(--accent); border-color:var(--accent)}
+.erd .k-mesh.on{color:var(--data); border-color:var(--data)}
+.erd .k-cascade.on{color:var(--symptom); border-color:var(--symptom)}
+@media (max-width:640px){.erd-stage{height:440px}}
+.schema-card{border:1px solid var(--line); border-radius:10px; background:var(--ink-2); padding:16px 18px}
+.schema-card h4{font-family:var(--mono); font-size:14px; font-weight:600; color:var(--accent);
+  letter-spacing:.02em; margin-bottom:2px}
+.schema-card .grain{font-size:12.5px; color:var(--symptom); font-family:var(--mono); margin-bottom:10px}
+.schema-card .n{font-family:var(--display); font-size:26px; font-weight:600; letter-spacing:-.02em;
+  margin-bottom:10px}
+.schema-card .n span{font-size:13px; font-weight:450; color:var(--faint); font-family:var(--body);
+  letter-spacing:0; margin-left:6px}
+.schema-card ul{list-style:none; font-family:var(--mono); font-size:12px; line-height:1.85; color:var(--dim)}
+.schema-card ul b{color:var(--text); font-weight:500}
+.schema-card ul i{color:var(--faint); font-style:normal}
+
+/* ---- layer stepper ------------------------------------------------------ */
+.layers{display:grid; grid-template-columns:210px 1fr; gap:0; border:1px solid var(--line-2);
+  border-radius:12px; overflow:hidden; background:var(--ink-2); margin-bottom:44px}
+@media (max-width:820px){.layers{grid-template-columns:1fr}}
+.layer-rail{border-right:1px solid var(--line); background:var(--ink); padding:8px 0}
+@media (max-width:820px){.layer-rail{border-right:0; border-bottom:1px solid var(--line);
+  display:flex; overflow-x:auto; padding:8px}}
+.layer-btn{display:block; width:100%; text-align:left; background:none; border:0; cursor:pointer;
+  padding:9px 16px; color:var(--dim); font-family:var(--body); font-size:13.5px; line-height:1.35;
+  border-left:2px solid transparent}
+@media (max-width:820px){.layer-btn{width:auto; white-space:nowrap; border-left:0;
+  border-bottom:2px solid transparent}}
+.layer-btn:hover{color:var(--text); background:var(--ink-2)}
+.layer-btn.on{color:var(--text); border-left-color:var(--accent); background:var(--ink-2)}
+@media (max-width:820px){.layer-btn.on{border-left-color:transparent; border-bottom-color:var(--accent)}}
+.layer-btn i{display:block; font-style:normal; font-family:var(--mono); font-size:10.5px;
+  letter-spacing:.14em; color:var(--faint)}
+
+.layer-body{padding:22px 24px 20px; min-width:0}
+.layer-hd{display:flex; gap:16px; align-items:flex-start; margin-bottom:16px}
+.layer-n{font-size:30px; font-weight:600; color:var(--line-3); line-height:1; flex:none;
+  letter-spacing:-.02em}
+.layer-hd h3{font-family:var(--display); font-size:21px; font-weight:600; letter-spacing:-.01em;
+  margin-bottom:6px}
+.layer-hd p{font-size:15px; color:var(--dim); line-height:1.6; max-width:62ch}
+.layer-holds{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px}
+.layer-holds span{font-family:var(--mono); font-size:11.5px; color:var(--dim);
+  border:1px solid var(--line); border-radius:999px; padding:4px 11px; background:var(--ink)}
+.layer-holds span b{color:var(--accent); font-weight:500}
+.layer-nav{display:flex; align-items:center; gap:12px; margin-top:18px}
+.layer-pos{font-size:12px; color:var(--faint); margin:0 auto}
+
+/* ---- query box: the unit every figure on this page is made of -----------
+   One shape used everywhere: a rendered view on top, the SQL that produced it
+   underneath in a <details>, and the raw result table under that. The SQL is a
+   textarea rather than a <pre> because the whole claim of the page is that the
+   reader can change it; a read-only code block would be decoration. */
+.qbox{border:1px solid var(--line); border-radius:10px; background:var(--ink); overflow:hidden}
+.qbox + .qbox{margin-top:16px}
+.q-head{display:flex; align-items:baseline; gap:10px; padding:13px 16px 0}
+.q-head h4{font-family:var(--display); font-size:15px; font-weight:600}
+.q-head .q-sub{font-size:12.5px; color:var(--faint); margin-left:auto; text-align:right}
+.q-out{padding:14px 16px 16px; min-height:52px}
+.q-out.empty{color:var(--faint); font-family:var(--mono); font-size:12.5px}
+
+.q-sql{border-top:1px solid var(--line)}
+.q-sql summary{cursor:pointer; list-style:none; padding:9px 16px; font-family:var(--mono);
+  font-size:11.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--faint)}
+.q-sql summary::-webkit-details-marker{display:none}
+.q-sql summary::before{content:"+ "; color:var(--accent)}
+.q-sql[open] summary::before{content:"− "}
+.q-sql summary:hover{color:var(--dim)}
+.q-sql textarea,.console textarea{display:block; width:100%; border:0; border-top:1px solid var(--line);
+  background:#0A0E12; color:var(--text); font-family:var(--mono); font-size:12.5px; line-height:1.65;
+  padding:13px 16px; resize:vertical; tab-size:2}
+.q-sql textarea{min-height:96px}
+.q-sql textarea:focus,.console textarea:focus{outline:0; box-shadow:inset 2px 0 0 var(--accent)}
+.q-bar{display:flex; align-items:center; gap:10px; padding:10px 16px; border-top:1px solid var(--line);
+  background:var(--ink-2)}
+.q-bar .btn{padding:5px 13px; font-size:12.5px}
+.q-note{font-family:var(--mono); font-size:11.5px; color:var(--faint); margin-left:auto}
+.q-note.err{color:#E0574A; margin-left:0}
+
+/* result tables — the honest fallback. Whatever the reader's edited query
+   returns, the raw rows are shown, so a query that no longer fits the chart
+   still produces something checkable instead of an error. */
+.q-table{overflow:auto; max-height:340px; border-top:1px solid var(--line)}
+.q-table table{width:100%; border-collapse:collapse; font-family:var(--mono); font-size:12px}
+.q-table th{position:sticky; top:0; background:var(--ink-3); text-align:left; padding:7px 12px;
+  color:var(--dim); font-weight:500; white-space:nowrap; border-bottom:1px solid var(--line-2)}
+.q-table td{padding:5px 12px; border-bottom:1px solid var(--line); white-space:nowrap; color:var(--dim)}
+.q-table td.num{text-align:right; color:var(--text); font-variant-numeric:tabular-nums}
+.q-table td.null{color:var(--faint); font-style:italic}
+.q-table tr:hover td{background:var(--ink-2)}
+.q-more{padding:7px 12px; font-family:var(--mono); font-size:11.5px; color:var(--faint);
+  border-top:1px solid var(--line)}
+
+/* ---- bar charts, drawn as divs ------------------------------------------
+   Namespaced sl-*: site.css already owns a .bar (the sticky header, height:60px),
+   and an unprefixed .bar here silently inherited that height, so every chart row
+   was 60px tall for no visible reason.
+   No SVG and no chart library: a horizontal bar is a track and a fill, and
+   that is the only chart shape this page needs. Widths are set as percentages
+   so nothing has to be re-measured on resize. */
+.sl-bars{display:flex; flex-direction:column; gap:7px}
+.sl-bar{display:grid; grid-template-columns:minmax(90px,26%) 1fr auto; gap:12px; align-items:center}
+.sl-bar .bk{font-family:var(--mono); font-size:11.5px; color:var(--dim); text-align:right;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.sl-bar .bt{height:15px; background:var(--ink-3); border-radius:3px; overflow:hidden; position:relative}
+.sl-bar .bf{height:100%; background:var(--accent); border-radius:3px; min-width:2px}
+.sl-bar .bf.alt{background:var(--data)}
+.sl-bar .bf.sym{background:var(--symptom)}
+.sl-bar .bv{font-family:var(--mono); font-size:12px; color:var(--text); text-align:right;
+  font-variant-numeric:tabular-nums; min-width:74px}
+.sl-bar .bv i{color:var(--faint); font-style:normal; font-size:10.5px; margin-left:5px}
+
+/* ---- atlas canvas ------------------------------------------------------- */
+.atlas{border:1px solid var(--line-2); border-radius:12px; background:var(--ink-2);
+  padding:18px; margin-bottom:44px}
+.ctl-bar{display:flex; flex-wrap:wrap; gap:18px; align-items:flex-end; margin-bottom:16px}
+.ctl label{display:block; font-family:var(--mono); font-size:11px; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--faint); margin-bottom:7px}
+.ctl.grow{flex:1; min-width:220px}
+.ctl.grow label{text-transform:none; letter-spacing:0; font-size:11.5px}
+.seg{display:inline-flex; border:1px solid var(--line-2); border-radius:7px; overflow:hidden}
+.seg button{background:var(--ink); border:0; border-right:1px solid var(--line); cursor:pointer;
+  padding:6px 12px; font-family:var(--body); font-size:12.5px; color:var(--dim)}
+.seg button:last-child{border-right:0}
+.seg button:hover{color:var(--text); background:var(--ink-3)}
+.seg button.on{background:var(--accent-soft); color:var(--accent)}
+.ctl .btn{padding:6px 13px; font-size:12.5px}
+input[type=range]{width:100%; accent-color:var(--accent); background:transparent}
+
+.atlas-stage{border:1px solid var(--line); border-radius:8px; overflow:hidden; background:#070A0D}
+#atlas-canvas{display:block; width:100%; height:auto; image-rendering:auto}
+.atlas-labels{display:grid; grid-template-columns:repeat(3,1fr); border-top:1px solid var(--line)}
+.atlas-labels span{padding:6px 10px; font-family:var(--mono); font-size:11px; color:var(--faint);
+  text-align:center; border-right:1px solid var(--line)}
+.atlas-labels span:last-child{border-right:0}
+.atlas-legend{display:flex; flex-wrap:wrap; gap:16px; align-items:center; margin:14px 0 16px;
+  font-family:var(--mono); font-size:11.5px; color:var(--dim)}
+.atlas-legend .swatch{display:inline-block; width:64px; height:9px; border-radius:2px;
+  vertical-align:middle; margin-right:7px}
+.atlas-legend .key{display:inline-block; width:9px; height:9px; border-radius:2px;
+  vertical-align:middle; margin-right:6px}
+
+/* ---- distributions grid ------------------------------------------------- */
+.dists{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:44px}
+@media (max-width:900px){.dists{grid-template-columns:1fr}}
+.dists .qbox{margin-top:0}
+
+/* ---- console ------------------------------------------------------------ */
+.console{border:1px solid var(--line-2); border-radius:12px; background:var(--ink-2);
+  overflow:hidden; margin-bottom:44px}
+.con-hd{display:flex; align-items:center; gap:12px; padding:12px 16px; flex-wrap:wrap}
+.con-lbl{font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--faint)}
+.con-chips{display:flex; flex-wrap:wrap; gap:7px}
+.chip{background:var(--ink); border:1px solid var(--line-2); border-radius:999px; cursor:pointer;
+  padding:4px 12px; font-family:var(--body); font-size:12.5px; color:var(--dim)}
+.chip:hover{color:var(--accent); border-color:var(--accent)}
+.console textarea{min-height:150px}
+.con-bar{display:flex; align-items:center; gap:12px; padding:11px 16px; border-top:1px solid var(--line)}
+.con-time{font-size:11.5px; color:var(--faint)}
+.con-out .q-table{max-height:460px; border-top:1px solid var(--line-2)}
+.con-err{padding:14px 16px; font-family:var(--mono); font-size:12.5px; color:#E0574A;
+  border-top:1px solid var(--line-2); white-space:pre-wrap}
+
+/* Panels are inert until the database is up. Disabling the controls is more
+   honest than letting a click do nothing silently. */
+body:not(.db-ready) .qbox .q-bar .btn,
+body:not(.db-ready) .console .btn,
+body:not(.db-ready) .chip,
+body:not(.db-ready) .ctl-bar button,
+body:not(.db-ready) .ctl-bar input{opacity:.5; pointer-events:none}
+
+/* site.css .btn sets a colour but no background — on the site it is only ever
+   an <a>, which has no background of its own. Every button on this page is a
+   real <button>, so the UA default (buttonface, white) wins and near-white
+   .btn text lands on it invisibly. Give the element form a surface. */
+button.btn{background:var(--ink-3); cursor:pointer; line-height:1.25}
+button.btn:hover{background:var(--ink-4)}
+button.btn.primary{background:var(--accent); color:var(--ink)}
+button.btn.primary:hover{background:var(--accent-2)}
+
+/* The database starts on load, so the button is only ever a retry. */
+.boot:not([data-state="fail"]) #boot-go{display:none}
+
+/* A mode that overrides the Draw control has to look overridden. Silently
+   flipping the segment reads as the page glitching, and leaves the reader's
+   own choice destroyed when they switch back. */
+.seg.forced{border-color:var(--amber-line, rgba(224,138,74,.5))}
+.seg button.forced-off{opacity:.3; text-decoration:line-through}
+.seg button.forced-off:hover{background:var(--ink); color:var(--faint)}
+.fill-note{display:block; margin-top:5px; font-size:11px; color:#E08A4A; letter-spacing:.02em}
+
+/* ---- SQL editors --------------------------------------------------------
+   CodeMirror 5, vendored. Version 6 is the current line but is published as a
+   set of interdependent ESM packages that expect a bundler; this page has no
+   build step, and 5 ships one UMD file plus one mode file. */
+.cm-s-shadowlab.CodeMirror{background:#0A0E12; color:var(--text);
+  font-family:var(--mono); font-size:12.5px; line-height:1.65;
+  height:auto; padding:11px 6px; border-top:1px solid var(--line)}
+.cm-s-shadowlab .CodeMirror-lines{padding:0}
+.cm-s-shadowlab .CodeMirror-cursor{border-left:1.5px solid var(--accent)}
+.cm-s-shadowlab .CodeMirror-selected{background:rgba(79,214,188,.16)}
+.cm-s-shadowlab.CodeMirror-focused .CodeMirror-selected{background:rgba(79,214,188,.24)}
+.cm-s-shadowlab .CodeMirror-line::selection,
+.cm-s-shadowlab .CodeMirror-line > span::selection{background:rgba(79,214,188,.24)}
+.cm-s-shadowlab .CodeMirror-matchingbracket{color:var(--accent); border-bottom:1px solid var(--accent)}
+.q-ed:focus-within,.con-ed:focus-within{box-shadow:inset 2px 0 0 var(--accent)}
+
+.cm-s-shadowlab .cm-comment{color:var(--faint); font-style:italic}
+.cm-s-shadowlab .cm-keyword{color:#4FD6BC; font-weight:500}
+.cm-s-shadowlab .cm-builtin,
+.cm-s-shadowlab .cm-type{color:#7FB4FF}
+.cm-s-shadowlab .cm-string,
+.cm-s-shadowlab .cm-string-2{color:#E0A860}
+.cm-s-shadowlab .cm-number{color:#C7A6F0}
+.cm-s-shadowlab .cm-atom{color:#E08A4A}
+.cm-s-shadowlab .cm-operator,
+.cm-s-shadowlab .cm-punctuation{color:var(--dim)}
+.cm-s-shadowlab .cm-variable,
+.cm-s-shadowlab .cm-variable-2,
+.cm-s-shadowlab .cm-variable-3{color:var(--text)}
+/* The console is for queries the reader writes, not just the ones it ships with,
+   so it gets room before anything is typed. Panel editors size to their query. */
+.con-ed .CodeMirror{min-height:150px}
+.q-ed .CodeMirror{min-height:72px}
+
+/* ---- result paging ------------------------------------------------------
+   A native select renders as a white system control on Windows, so it needs a
+   surface and a colour the same way the buttons did. */
+.q-page{display:flex; align-items:center; gap:8px; padding:9px 12px;
+  border-top:1px solid var(--line); background:var(--ink-2)}
+.q-page select{font-family:var(--mono); font-size:11.5px; color:var(--text);
+  background:var(--ink-3); border:1px solid var(--line-2); border-radius:6px;
+  padding:4px 8px; cursor:pointer}
+.q-page select:focus{outline:0; border-color:var(--accent)}
+.q-page .btn{padding:2px 11px; font-size:13px; line-height:1.5}
+.q-page .btn:disabled{opacity:.32; pointer-events:none}
+.q-pagepos{font-size:11.5px; color:var(--faint); margin-left:auto}
+
+/* ---- the 3D view --------------------------------------------------------- */
+.viewer{background:var(--ink-2); border:1px solid var(--line); border-radius:12px; overflow:hidden}
+/* The atlas panel carries its 18px on .atlas itself; .viewer cannot, because the stage below has to
+   reach the rounded edge. So the inset lives on the bar instead, and the bar stops being one
+   wrapping flex: three bands, ruled apart, for what you are looking at, what is drawn, and how it
+   is drawn. Everything shared one row-gap at one weight before, so a segmented picker, a layer
+   toggle and a slider all read as the same kind of thing, which is the smushed look. */
+.viewer .ctl-bar{display:block; padding:0 18px}
+.v-row{display:flex; flex-wrap:wrap; gap:16px 22px; align-items:flex-end; padding:15px 0}
+.v-row + .v-row{border-top:1px solid var(--line)}
+.ctl.right{margin-left:auto}
+.v-stage{position:relative; height:min(66vh,620px); background:#070A0D;
+  border-top:1px solid var(--line); border-bottom:1px solid var(--line); cursor:grab}
+.v-stage:active{cursor:grabbing}
+.v-stage canvas{display:block; width:100%; height:100%}
+/* align-items, because the two wrapper spans (#v-wire-ctl, #v-sun-ctl) are inline boxes whose
+   buttons sit on a text baseline while their button siblings stretch to the row height - so Boxes
+   and Instanced ended up on different centres. The spans become flex too, or the gap inside them
+   is whitespace-dependent. */
+.v-btns{display:flex; flex-wrap:wrap; gap:6px; align-items:center}
+.v-btns > span{display:flex; gap:6px}
+.v-btns .btn{padding:5px 11px; font-size:12px}
+.v-btns .btn.on{background:var(--accent-soft); color:var(--accent); border-color:rgba(79,214,188,.4)}
+/* A control with an explanation now says so. The badge owns the hover rather than the whole
+   control, so moving the mouse onto a button to click it does not throw a box over the thing being
+   clicked - and a reader can tell which controls have anything to read at all, which a title
+   attribute never told them. */
+.ibadge{display:inline-flex; align-items:center; justify-content:center; flex:none;
+  width:14px; height:14px; margin-left:7px; border-radius:50%; cursor:help;
+  border:1px solid var(--line-2); background:var(--ink); color:var(--faint);
+  font-family:var(--mono); font-size:9.5px; line-height:1; vertical-align:middle}
+.ibadge:hover, .ibadge:focus{color:var(--accent); border-color:var(--accent); outline:none}
+button.hasinfo{display:inline-flex; align-items:center}
+.tip{position:fixed; z-index:60; max-width:min(400px, calc(100vw - 24px));
+  background:var(--ink); border:1px solid var(--line-2); border-radius:8px;
+  padding:10px 13px; font-size:12.5px; line-height:1.55; color:var(--dim); pointer-events:none}
+/* Only a pinned pane takes the pointer: an unpinned one follows the mouse around the bar and would
+   otherwise sit between the pointer and the control the reader is heading for. */
+.tip.pin{pointer-events:auto; padding-right:30px}
+.tip .tip-x{display:none}
+.tip.pin .tip-x{display:block; position:absolute; top:4px; right:5px; width:20px; height:20px;
+  border:0; background:none; cursor:pointer; color:var(--faint); font-size:15px; line-height:1}
+.tip.pin .tip-x:hover{color:var(--text)}
+.v-foot{display:flex; align-items:center; gap:14px; padding:9px 16px; font-size:11.5px;
+  color:var(--faint); flex-wrap:wrap}
+/* The stage takes focus so it can own the arrow keys without the article scrolling underneath it.
+   The ring is what says which of the two is listening: without it, whether the next keypress flies
+   the camera or scrolls the page is invisible state, and the reader finds out by pressing one. */
+.v-stage:focus{outline:none; box-shadow:inset 0 0 0 1px var(--accent)}
+.v-keys{font-size:11px; line-height:1.9; color:var(--faint)}
+.v-keys kbd{font-size:.9em; border-bottom-width:1px; padding:0 4px; color:var(--faint)}
+.v-stage:focus ~ .v-foot .v-keys, .v-stage:focus ~ .v-foot .v-keys kbd{color:var(--accent)}
+.v-stage:focus ~ .v-foot .v-keys kbd{border-color:var(--accent)}
+.v-foot .dim{margin-left:auto}
+body:not(.db-ready) .viewer{opacity:.4; pointer-events:none}
+
+/* The viewer when WebGL is unavailable. It is a message, not a canvas, so it needs to read as one
+   rather than as an empty black box the reader assumes is still loading. */
+.v-stage.v-dead{display:flex; align-items:center; padding:0 12%; font-size:13px;
+  line-height:1.7; color:var(--faint); text-align:center}
